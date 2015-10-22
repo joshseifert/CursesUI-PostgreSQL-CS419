@@ -4,7 +4,7 @@ import npyscreen
 import psycopg2
 
 # make the database connection var global?
-psql = None
+# psql = None
 
 """
 This is the first page the user will encounter. It prompts them to enter the database information.
@@ -29,9 +29,9 @@ class ConnectForm(npyscreen.ActionForm, npyscreen.SplitForm):
 	#Connect to the database using psycopg2 library. Reference: http://initd.org/psycopg/docs/module.html#psycopg2.connect
 	def on_ok(self):
 		try:
-			#self.psql = psycopg2.connect(database=self.dbname.value, user=self.dbuser.value, password=self.dbpass.value, host=self.dbhost.value, port=self.dbport.value)
-			global psql
-			psql = psycopg2.connect(database=self.dbname.value, user=self.dbuser.value, password=self.dbpass.value, host=self.dbhost.value, port=self.dbport.value)
+			self.parentApp.psql = psycopg2.connect(database=self.dbname.value, user=self.dbuser.value, password=self.dbpass.value, host=self.dbhost.value, port=self.dbport.value)
+			#global psql
+			#psql = psycopg2.connect(database=self.dbname.value, user=self.dbuser.value, password=self.dbpass.value, host=self.dbhost.value, port=self.dbport.value)
 			npyscreen.notify_confirm("Successfully connected to the database!","Connected", editw=1)
 			self.parentApp.setNextForm('MAINMENU')
 		except:
@@ -94,7 +94,7 @@ class MainForm(npyscreen.FormWithMenus):
 
 
 class SQLForm(npyscreen.SplitForm, MainForm):
-	OK_BUTTON_TEXT = "Back to Main Menu"
+	OK_BUTTON_TEXT = "Run Query"
 	def create(self):
 		self.menu = self.new_menu(name="Main Menu", shortcut='m')
 		self.menu.addItem("Structure", self.structure, "s")
@@ -116,8 +116,9 @@ class SQLForm(npyscreen.SplitForm, MainForm):
 	"""
 	def afterEditing(self):
 		try:
-			#npyscreen.notify_confirm("PSQL value = %s" % psql, editw=1)
-			c = psql.cursor()
+		#	global psql
+			npyscreen.notify_confirm("PSQL value = %s" % self.parentApp.psql, editw=1)
+			c = self.parentApp.psql.cursor()
 			npyscreen.notify_confirm("DEBUG 1: self.SQL_command.value = %s" % self.SQL_command.value)
 			c.execute(self.SQL_command.value) # ERROR HERE
 			npyscreen.notify_confirm("DEBUG 2")
@@ -126,8 +127,8 @@ class SQLForm(npyscreen.SplitForm, MainForm):
 			c.close()
 			npyscreen.notify_confirm("DEBUG 4")
 			
-		except:
-			npyscreen.notify_confirm("Error: Unable to execute SQL query. Check your syntax.")
+		except Exception, e:
+			npyscreen.notify_confirm("e: %s" % e)
 		self.parentApp.setNextForm('MAINMENU')
 		
 class BrowseForm(npyscreen.SplitForm, MainForm):
@@ -138,6 +139,22 @@ class BrowseForm(npyscreen.SplitForm, MainForm):
 		self.menu.addItem("SQL Runner", self.sql_run, "q")
 		self.menu.addItem("Browse", self.browse, "b")
 		self.menu.addItem("Close Menu", self.close_menu, "c")
+	
+	# Query DB for list of tables.
+	def beforeEditing(self):
+		try:
+			npyscreen.notify_confirm("self.parentApp.psql = %s" % self.parentApp.psql)
+			c = self.parentApp.psql.cursor()
+			npyscreen.notify_confirm("c = %s" % c)
+			# http://www.linuxscrew.com/2009/07/03/postgresql-show-tables-show-databases-show-columns/
+			# SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';
+			c.execute("SELECT table_name FROM information_schema.tables")
+			result = c.fetchall()
+			for each_line in result:
+				npyscreen.notify_confirm(each_line)
+			#npyscreen.notify_confirm(result)
+		except:
+			npyscreen.notify_confirm("Error. Werp. :(")
 
 	def afterEditing(self):
 		self.parentApp.setNextForm('MAINMENU')
