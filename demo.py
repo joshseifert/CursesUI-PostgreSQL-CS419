@@ -23,8 +23,8 @@ class ConnectForm(npyscreen.ActionForm, npyscreen.SplitForm):
 		self.dbname = self.add(npyscreen.TitleText, begin_entry_at=24, name="Database Name:", value="myapp")
 		self.dbuser = self.add(npyscreen.TitleText, begin_entry_at=24, name="Database User:", value="myapp")
 		self.dbpass = self.add(npyscreen.TitleText, begin_entry_at=24, name="Database Password:", value="dbpass")
-		self.dbhost = self.add(npyscreen.TitleText, begin_entry_at=24, name="Database Host:", value="0.0.0.0")
-		self.dbport = self.add(npyscreen.TitleText, begin_entry_at=24, name="Database Port:", value="5432")
+		self.dbhost = self.add(npyscreen.TitleText, begin_entry_at=24, name="Database Host:", value="127.0.0.1")
+		self.dbport = self.add(npyscreen.TitleText, begin_entry_at=24, name="Database Port:", value="15432")
 
 	#Connect to the database using psycopg2 library. Reference: http://initd.org/psycopg/docs/module.html#psycopg2.connect
 	def on_ok(self):
@@ -101,35 +101,44 @@ class SQLForm(npyscreen.SplitForm, MainForm):
 		self.menu.addItem("SQL Runner", self.sql_run, "q")
 		self.menu.addItem("Browse", self.browse, "b")
 		self.menu.addItem("Close Menu", self.close_menu, "^c")
+		self.menu.addItem("Quit Application", self.exit_form, "^X")
 		
 		self.SQL_command = self.add(npyscreen.MultiLineEdit, height=5, scroll_exit=True)
+		self.SQL_display = self.add(npyscreen.GridColTitles, rely=(self.get_half_way() + 1))
 	
-	
-	"""
-	Stuck here. The user's SQL query is saved in self.SQL_command (I'm using lots of the notify_confirm feature
-	to verify values at different steps), but it always throws errors at the .execute step. I'm not sure why, seems
-	very similar to the docs at 
-	
-	http://initd.org/psycopg/docs/usage.html
-	
-	I'm at least pretty sure I'm connected to the database properly, but I can't figure out where else the error may be.
-	"""
 	def afterEditing(self):
 		try:
-		#	global psql
-			npyscreen.notify_confirm("PSQL value = %s" % self.parentApp.psql, editw=1)
+			#	psql stmt execution
 			c = self.parentApp.psql.cursor()
-			npyscreen.notify_confirm("DEBUG 1: self.SQL_command.value = %s" % self.SQL_command.value)
-			c.execute(self.SQL_command.value) # ERROR HERE
-			npyscreen.notify_confirm("DEBUG 2")
-			result = c.fetchall()
-			npyscreen.notify_confirm("DEBUG 3")
+			c.execute(self.SQL_command.value)
+			
+			# grid columns displayed from list of strings
+			# http://stackoverflow.com/questions/10252247/how-do-i-get-a-list-of-column-names-from-a-psycopg2-cursor
+			colnames = [desc[0] for desc in c.description]
+			self.SQL_display.col_titles = colnames
+
+			# grid results displayed from 2d array
+			results = c.fetchall()
+			self.SQL_display.values = []
+			for result in results:
+				row = []
+				for i in xrange(0, len(colnames)):
+					row.append(result[i])
+				self.SQL_display.values.append(row)
+
+			# psql stmt close
 			c.close()
-			npyscreen.notify_confirm("DEBUG 4")
+
 			
 		except Exception, e:
 			npyscreen.notify_confirm("e: %s" % e)
-		self.parentApp.setNextForm('MAINMENU')
+			
+			# psql transactions posted after a failed transaction
+			# on the same cxn will fail if the original transaction 
+			# is not rolled back first
+			# http://stackoverflow.com/questions/10399727/psqlexception-current-transaction-is-aborted-commands-ignored-until-end-of-tra
+			c.execute("ROLLBACK;")
+			c.close()
 		
 class BrowseForm(npyscreen.SplitForm, MainForm):
 	OK_BUTTON_TEXT = "Back to Main Menu"
@@ -148,7 +157,7 @@ class BrowseForm(npyscreen.SplitForm, MainForm):
 			npyscreen.notify_confirm("c = %s" % c)
 			# http://www.linuxscrew.com/2009/07/03/postgresql-show-tables-show-databases-show-columns/
 			# SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';
-			c.execute("SELECT table_name FROM information_schema.tables")
+			c.execute("SELECT table_name FROM information_schema.tables WHERE table_schema='public';")
 			result = c.fetchall()
 			for each_line in result:
 				npyscreen.notify_confirm(each_line)
