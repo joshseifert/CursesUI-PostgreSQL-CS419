@@ -4,8 +4,14 @@ import npyscreen
 import psycopg2
 from math import ceil
 
-# make the database connection var global?
-# psql = None
+# Changed this to make it more object-oriented, in case we do MySQL later...
+class PostgreSQL():
+	def __init__(self, database, user, password, host, port):
+		self.conn = psycopg2.connect(database=database, 
+			user=user, 
+			password=password, 
+			host=host, 
+			port=port)
 
 """
 This is the first page the user will encounter. It prompts them to enter the database information.
@@ -17,8 +23,10 @@ sure why the host needs to be 0.0.0.0...I got that just from googling. Psycopg s
 """
 class ConnectForm(npyscreen.ActionForm, npyscreen.SplitForm):
 
-	OK_BUTTON_TEXT = "Connect"	# The text is too long. Find out how to reposition these buttons. relx, rely?
+	OK_BUTTON_TEXT = "Connect"	# Reposition, rename buttons to indicate functionality
+	OK_BUTTON_BR_OFFSET = (2, 15)
 	CANCEL_BUTTON_TEXT = "Quit"
+	CANCEL_BUTTON_BR_OFFSET = (2, 8)
 	
 	def create(self):
 		self.dbname = self.add(npyscreen.TitleText, begin_entry_at=24, name="Database Name:", value="myapp")
@@ -30,9 +38,8 @@ class ConnectForm(npyscreen.ActionForm, npyscreen.SplitForm):
 	#Connect to the database using psycopg2 library. Reference: http://initd.org/psycopg/docs/module.html#psycopg2.connect
 	def on_ok(self):
 		try:
-			self.parentApp.psql = psycopg2.connect(database=self.dbname.value, user=self.dbuser.value, password=self.dbpass.value, host=self.dbhost.value, port=self.dbport.value)
-			#global psql
-			#psql = psycopg2.connect(database=self.dbname.value, user=self.dbuser.value, password=self.dbpass.value, host=self.dbhost.value, port=self.dbport.value)
+			self.parentApp.psql = PostgreSQL(self.dbname.value, self.dbuser.value, self.dbpass.value, self.dbhost.value, self.dbport.value)
+			#self.parentApp.psql = psycopg2.connect(database=self.dbname.value, user=self.dbuser.value, password=self.dbpass.value, host=self.dbhost.value, port=self.dbport.value)
 			npyscreen.notify_confirm("Successfully connected to the database!","Connected", editw=1)
 			self.parentApp.setNextForm('MAINMENU')
 		except:
@@ -46,9 +53,7 @@ class ConnectForm(npyscreen.ActionForm, npyscreen.SplitForm):
 			self.parentApp.setNextForm(None)
 		else:
 			npyscreen.notify_confirm("Please enter login information.", "Back to it!")
-
 			
-
 class MainForm(npyscreen.FormWithMenus):
 	def create(self):
 		self.menu = self.new_menu(name="Main Menu", shortcut='m')
@@ -129,7 +134,7 @@ class SQLForm(npyscreen.SplitForm, MainForm):
 	def afterEditing(self):
 		try:
 			#	psql stmt execution
-			c = self.parentApp.psql.cursor()
+			c = self.parentApp.psql.conn.cursor()
 			c.execute(self.SQL_command.value)
 			
 			# http://stackoverflow.com/questions/10252247/how-do-i-get-a-list-of-column-names-from-a-psycopg2-cursor
@@ -184,33 +189,51 @@ class SQLForm(npyscreen.SplitForm, MainForm):
 			self.SQL_display.values.append(row)
 
 
+class TableList(npyscreen.MultiLineAction):
+    def actionHighlighted(self, act_on_this, keypress):
+		selected_table = act_on_this[0]
+		self.parent.parentApp.getForm('BROWSE').table_name = selected_table
+		self.parent.parentApp.switchForm('BROWSE')
+			
+			
 class BrowseForm(npyscreen.SplitForm, MainForm):
+
 	OK_BUTTON_TEXT = "Back to Main Menu"
+		
 	def create(self):
 		self.menu = self.new_menu(name="Main Menu", shortcut='m')
 		self.menu.addItem("Structure", self.structure, "s")
 		self.menu.addItem("SQL Runner", self.sql_run, "q")
 		self.menu.addItem("Browse", self.browse, "b")
-		self.menu.addItem("Close Menu", self.close_menu, "c")
+		self.menu.addItem("Close Menu", self.close_menu, "^c")
+		self.menu.addItem("Quit Application", self.exit_form, "^X")
+		
+		self.action = self.add(TableList, scroll_exit = True)
+		
+
 	
 	# Query DB for list of tables.
 	def beforeEditing(self):
 		try:
-			npyscreen.notify_confirm("self.parentApp.psql = %s" % self.parentApp.psql)
-			c = self.parentApp.psql.cursor()
-			npyscreen.notify_confirm("c = %s" % c)
+			c = self.parentApp.psql.conn.cursor()
 			# http://www.linuxscrew.com/2009/07/03/postgresql-show-tables-show-databases-show-columns/
-			# SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';
 			c.execute("SELECT table_name FROM information_schema.tables WHERE table_schema='public';")
 			result = c.fetchall()
-			for each_line in result:
-				npyscreen.notify_confirm(each_line)
-			#npyscreen.notify_confirm(result)
-		except:
-			npyscreen.notify_confirm("Error. Werp. :(")
+			tables = []
+			for table in result:
+				tables.append(str(table).split("'")[1])	
+			
+			self.action.values = tables
+			
+		except Exception, e:
+			npyscreen.notify_confirm("e: %s" % e)
+			c.execute("ROLLBACK;")
+			c.close()
 
 	def afterEditing(self):
 		self.parentApp.setNextForm('MAINMENU')
+
+			
 	
 class StructureForm(npyscreen.SplitForm, MainForm):
 	OK_BUTTON_TEXT = "Back to Main Menu"
