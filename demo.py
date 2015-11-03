@@ -98,21 +98,33 @@ class SQLForm(npyscreen.SplitForm, MainForm):
 	OK_BUTTON_TEXT = "Run Query"
 	OK_BUTTON_BR_OFFSET = (15, 6)
 
-	MAX_PAGE_SIZE = 8
+	MAX_PAGE_SIZE = 7
 
 	def create(self):
+
+		# globals
+		self.page = 0
+		self.colnames = []
+		self.results = []
+
+		# menu items
 		self.menu = self.new_menu(name="Main Menu", shortcut='m')
 		self.menu.addItem("Structure", self.structure, "s")
 		self.menu.addItem("SQL Runner", self.sql_run, "q")
 		self.menu.addItem("Browse", self.browse, "b")
 		self.menu.addItem("Close Menu", self.close_menu, "^c")
 		self.menu.addItem("Quit Application", self.exit_form, "^X")
-		
-		self.SQL_command = self.add(npyscreen.MultiLineEdit, height=5, scroll_exit=True)
-		self.SQL_display = self.add(npyscreen.GridColTitles, editable=False, rely=(self.get_half_way() + 1))
 	
-		#self.next_page_btn = self.add(npyscreen.ButtonPress, name='[Next]', relx=10, rel=6)
-		#self.next_page_btn.whenPressed = nextPageGrid()
+		# widgets
+		self.SQL_command = self.add(npyscreen.MultiLineEdit, max_height=5, scroll_exit=True)
+		self.SQL_display = self.add(npyscreen.GridColTitles, max_height=9, editable=False, rely=(self.get_half_way() + 1))
+	
+		self.next_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Next]', relx=-13, rely=-3)
+		self.next_page_btn.whenPressed = self.nextPage
+
+		self.prev_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Prev]', relx=-23, rely=-3)
+		self.prev_page_btn.whenPressed = self.prevPage
+
 
 	def afterEditing(self):
 		try:
@@ -143,6 +155,18 @@ class SQLForm(npyscreen.SplitForm, MainForm):
 			c.execute("ROLLBACK;")
 			c.close()
 
+	def nextPage(self):
+		self.page += 1
+		self.displayResultsGrid(self.page)
+		self.SQL_display.update(clear=False)
+		self.display()
+
+	def prevPage(self):
+		self.page -= 1
+		self.displayResultsGrid(self.page)
+		self.SQL_display.update(clear=False)
+		self.display()
+
 	def displayResultsGrid(self, page):
 		# column titles
 		self.SQL_display.col_titles = self.colnames
@@ -158,7 +182,7 @@ class SQLForm(npyscreen.SplitForm, MainForm):
 			for i in xrange(0, len(self.colnames)):
 				row.append(result[i])
 			self.SQL_display.values.append(row)
-	
+
 
 class BrowseForm(npyscreen.SplitForm, MainForm):
 	OK_BUTTON_TEXT = "Back to Main Menu"
