@@ -2,6 +2,7 @@
 
 import npyscreen
 import psycopg2
+from math import ceil
 
 # make the database connection var global?
 # psql = None
@@ -95,6 +96,10 @@ class MainForm(npyscreen.FormWithMenus):
 
 class SQLForm(npyscreen.SplitForm, MainForm):
 	OK_BUTTON_TEXT = "Run Query"
+	OK_BUTTON_BR_OFFSET = (15, 6)
+
+	MAX_PAGE_SIZE = 8
+
 	def create(self):
 		self.menu = self.new_menu(name="Main Menu", shortcut='m')
 		self.menu.addItem("Structure", self.structure, "s")
@@ -104,27 +109,25 @@ class SQLForm(npyscreen.SplitForm, MainForm):
 		self.menu.addItem("Quit Application", self.exit_form, "^X")
 		
 		self.SQL_command = self.add(npyscreen.MultiLineEdit, height=5, scroll_exit=True)
-		self.SQL_display = self.add(npyscreen.GridColTitles, rely=(self.get_half_way() + 1))
+		self.SQL_display = self.add(npyscreen.GridColTitles, editable=False, rely=(self.get_half_way() + 1))
 	
+		#self.next_page_btn = self.add(npyscreen.ButtonPress, name='[Next]', relx=10, rel=6)
+		#self.next_page_btn.whenPressed = nextPageGrid()
+
 	def afterEditing(self):
 		try:
 			#	psql stmt execution
 			c = self.parentApp.psql.cursor()
 			c.execute(self.SQL_command.value)
 			
-			# grid columns displayed from list of strings
 			# http://stackoverflow.com/questions/10252247/how-do-i-get-a-list-of-column-names-from-a-psycopg2-cursor
-			colnames = [desc[0] for desc in c.description]
-			self.SQL_display.col_titles = colnames
-
-			# grid results displayed from 2d array
-			results = c.fetchall()
-			self.SQL_display.values = []
-			for result in results:
-				row = []
-				for i in xrange(0, len(colnames)):
-					row.append(result[i])
-				self.SQL_display.values.append(row)
+			self.colnames = [desc[0] for desc in c.description]
+			self.results = c.fetchall()
+			
+			# pagination
+			self.page = 0
+			self.total_pages = int(ceil(len(self.results) / float(self.MAX_PAGE_SIZE)))
+			self.displayResultsGrid(self.page)
 
 			# psql stmt close
 			c.close()
@@ -139,7 +142,24 @@ class SQLForm(npyscreen.SplitForm, MainForm):
 			# http://stackoverflow.com/questions/10399727/psqlexception-current-transaction-is-aborted-commands-ignored-until-end-of-tra
 			c.execute("ROLLBACK;")
 			c.close()
-		
+
+	def displayResultsGrid(self, page):
+		# column titles
+		self.SQL_display.col_titles = self.colnames
+
+		# pagination
+		start = self.page * self.MAX_PAGE_SIZE
+		end = start + self.MAX_PAGE_SIZE
+
+		# grid results displayed from 2d array
+		self.SQL_display.values = []
+		for result in self.results[start:end]:
+			row = []
+			for i in xrange(0, len(self.colnames)):
+				row.append(result[i])
+			self.SQL_display.values.append(row)
+	
+
 class BrowseForm(npyscreen.SplitForm, MainForm):
 	OK_BUTTON_TEXT = "Back to Main Menu"
 	def create(self):
