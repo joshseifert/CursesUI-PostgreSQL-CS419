@@ -16,6 +16,23 @@ class PostgreSQL():
 	def run_sql(self, query):
 		pass # Optional, if we want to refactor to be more OO
 		
+	def table_structure(self, table_name):
+		try:
+			c = self.conn.cursor()
+			#https://docs.oracle.com/cd/E17952_01/refman-5.0-en/columns-table.html
+			#Trying to formulate this based on the PHPMyAdmin screen, it doesn't all fit horizontally. Make it vertical?
+			c.execute("SELECT column_name, data_type, \
+				collation_name, is_nullable, column_default FROM \
+				information_schema.columns WHERE table_name = '%s';" % table_name)
+			colnames = [desc[0] for desc in c.description]
+			results = c.fetchall()
+			return colnames, results
+		except Exception, e:
+			npyscreen.notify_confirm("e: %s" % e)
+			c.execute("ROLLBACK;")			
+		finally:
+			c.close()	
+		
 	def browse_table(self, table_name):
 		try:
 			c = self.conn.cursor()
@@ -108,7 +125,8 @@ class MainForm(npyscreen.FormWithMenus):
 			pass		
 	
 	def structure(self):
-		form = 'STRUCTURE'
+		form = 'CHOOSE'
+		self.parentApp.action = 'c' # Keep track of if user wants to browse or view structure
 		self.parentApp.switchForm(form)
 		
 	def sql_run(self):
@@ -117,6 +135,7 @@ class MainForm(npyscreen.FormWithMenus):
 		
 	def browse(self):
 		form = 'CHOOSE'
+		self.parentApp.action = 'b'
 		self.parentApp.switchForm(form)
 	
 	def exit_form(self):
@@ -225,11 +244,12 @@ class SQLForm(npyscreen.SplitForm, MainForm):
 
 class TableList(npyscreen.MultiLineAction):
     def actionHighlighted(self, act_on_this, keypress):
-		#selected_table = act_on_this
-		self.parent.parentApp.getForm('BROWSE').value = act_on_this
-		#npyscreen.notify_confirm(selected_table)
-		#self.parent.parentApp.getForm('BROWSE').table_name = selected_table
-		self.parent.parentApp.switchForm('BROWSE') # implement some kind of logic here, so it can route to "Structure" form, too
+		if self.parent.parentApp.action == 'b':
+			self.parent.parentApp.getForm('BROWSE').value = act_on_this
+			self.parent.parentApp.switchForm('BROWSE') # implement some kind of logic here, so it can route to "Structure" form, too
+		else:
+			self.parent.parentApp.getForm('STRUCTURE').value = act_on_this
+			self.parent.parentApp.switchForm('STRUCTURE')
 			
 class ChooseTableForm(npyscreen.ActionFormMinimal, MainForm):
 
@@ -328,16 +348,81 @@ class BrowseForm(npyscreen.ActionFormMinimal, MainForm):
 	
 	
 class StructureForm(npyscreen.SplitForm, MainForm):
-	OK_BUTTON_TEXT = "Back to Main Menu"
+	OK_BUTTON_TEXT = "Return to Main"
+	MAX_PAGE_SIZE = 15
+
 	def create(self):
+
+		# globals
+		self.page = 0
+		self.colnames = []
+		self.results = []
+
+		# menu items
 		self.menu = self.new_menu(name="Main Menu", shortcut='m')
 		self.menu.addItem("Structure", self.structure, "s")
 		self.menu.addItem("SQL Runner", self.sql_run, "q")
 		self.menu.addItem("Browse", self.browse, "b")
 		self.menu.addItem("Close Menu", self.close_menu, "^c")
+		self.menu.addItem("Quit Application", self.exit_form, "^X")
+	
+		# widgets
+		self.SQL_display = self.add(npyscreen.GridColTitles, max_height=17, editable=False, rely=(2))
+	
+		self.next_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Next]', relx=-13, rely=-5)
+		self.next_page_btn.whenPressed = self.nextPage
+
+		self.prev_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Prev]', relx=-23, rely=-5)
+		self.prev_page_btn.whenPressed = self.prevPage
 		
+	def beforeEditing(self):
+		self.name = "Structure of Table %s" % self.value
+		try:
+			#	psql stmt execution
+			self.colnames, self.results = self.parentApp.psql.table_structure(self.value)
+
+			# pagination
+			self.page = 0
+			self.total_pages = int(ceil(len(self.results) / float(self.MAX_PAGE_SIZE)))
+			self.displayResultsGrid(self.page)
+			
+		except Exception, e:
+			npyscreen.notify_confirm("e: %s" % e)
+			
 	def afterEditing(self):
 		self.parentApp.setNextForm('MAINMENU')
+
+	def nextPage(self):
+		if self.page < self.total_pages - 1:
+			self.page += 1
+		self.displayResultsGrid(self.page)
+		self.SQL_display.update(clear=False)
+		self.display()
+
+	def prevPage(self):
+		if self.page > 0:
+			self.page -= 1
+		self.displayResultsGrid(self.page)
+		self.SQL_display.update(clear=False)
+		self.display()
+
+	def displayResultsGrid(self, page):
+		# column titles
+		self.SQL_display.col_titles = self.colnames
+
+		# pagination
+		start = self.page * self.MAX_PAGE_SIZE
+		end = start + self.MAX_PAGE_SIZE
+
+		# grid results displayed from 2d array
+		self.SQL_display.values = []
+		for result in self.results[start:end]:
+			row = []
+			for i in xrange(0, len(self.colnames)):
+				row.append(result[i])
+			self.SQL_display.values.append(row)
+		
+
 			
 class App(npyscreen.NPSAppManaged):
 	def onStart(self):
