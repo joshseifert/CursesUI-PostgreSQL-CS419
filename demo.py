@@ -152,9 +152,9 @@ class MainForm(npyscreen.FormWithMenus):
 
 class SQLForm(npyscreen.SplitForm, MainForm):
 	OK_BUTTON_TEXT = "Run Query"
-	OK_BUTTON_BR_OFFSET = (15, 6)
+	OK_BUTTON_BR_OFFSET = (18, 6)
 
-	MAX_PAGE_SIZE = 7
+	MAX_PAGE_SIZE = 10
 
 	def create(self):
 
@@ -173,13 +173,19 @@ class SQLForm(npyscreen.SplitForm, MainForm):
 	
 		# widgets
 		self.SQL_command = self.add(npyscreen.MultiLineEdit, max_height=5, scroll_exit=True)
-		self.SQL_display = self.add(npyscreen.GridColTitles, max_height=9, editable=False, rely=(self.get_half_way() + 1))
+		self.SQL_display = self.add(npyscreen.GridColTitles, max_height=12, editable=False, rely=9)
 	
-		self.next_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Next]', relx=-13, rely=-3)
-		self.next_page_btn.whenPressed = self.nextPage
-
-		self.prev_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Prev]', relx=-23, rely=-3)
+		self.first_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[First]', relx=-43, rely=-3)
+		self.first_page_btn.whenPressed = self.firstPage
+	
+		self.prev_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Prev]', relx=-33, rely=-3)
 		self.prev_page_btn.whenPressed = self.prevPage
+	
+		self.next_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Next]', relx=-23, rely=-3)
+		self.next_page_btn.whenPressed = self.nextPage
+		
+		self.last_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Last]', relx=-13, rely=-3)
+		self.last_page_btn.whenPressed = self.lastPage
 
 
 	def afterEditing(self):
@@ -210,6 +216,18 @@ class SQLForm(npyscreen.SplitForm, MainForm):
 			# http://stackoverflow.com/questions/10399727/psqlexception-current-transaction-is-aborted-commands-ignored-until-end-of-tra
 			c.execute("ROLLBACK;")
 			c.close()
+			
+	def firstPage(self):
+		self.page = 0
+		self.displayResultsGrid(self.page)
+		self.SQL_display.update(clear=False)
+		self.display()
+		
+	def lastPage(self):
+		self.page = self.total_pages - 1
+		self.displayResultsGrid(self.page)
+		self.SQL_display.update(clear=False)
+		self.display()
 
 	def nextPage(self):
 		if self.page < self.total_pages - 1: # Only show pages that have data
@@ -292,12 +310,18 @@ class BrowseForm(npyscreen.ActionFormMinimal, MainForm):
 	
 		# widgets
 		self.SQL_display = self.add(npyscreen.GridColTitles, max_height=17, editable=False, rely=(2))
+		
+		self.first_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[First]', relx=-43, rely=-5)
+		self.first_page_btn.whenPressed = self.firstPage
 	
-		self.next_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Next]', relx=-13, rely=-5)
-		self.next_page_btn.whenPressed = self.nextPage
-
-		self.prev_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Prev]', relx=-23, rely=-5)
+		self.prev_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Prev]', relx=-33, rely=-5)
 		self.prev_page_btn.whenPressed = self.prevPage
+	
+		self.next_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Next]', relx=-23, rely=-5)
+		self.next_page_btn.whenPressed = self.nextPage
+		
+		self.last_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Last]', relx=-13, rely=-5)
+		self.last_page_btn.whenPressed = self.lastPage
 		
 	def beforeEditing(self):
 		self.name = "Browsing table %s" % self.value
@@ -315,7 +339,19 @@ class BrowseForm(npyscreen.ActionFormMinimal, MainForm):
 			
 	def afterEditing(self):
 		self.parentApp.setNextForm('MAINMENU')
-
+		
+	def firstPage(self):
+		self.page = 0
+		self.displayResultsGrid(self.page)
+		self.SQL_display.update(clear=False)
+		self.display()
+		
+	def lastPage(self):
+		self.page = self.total_pages - 1
+		self.displayResultsGrid(self.page)
+		self.SQL_display.update(clear=False)
+		self.display()
+	
 	def nextPage(self):
 		if self.page < self.total_pages - 1:
 			self.page += 1
@@ -426,12 +462,12 @@ class StructureForm(npyscreen.SplitForm, MainForm):
 			
 class App(npyscreen.NPSAppManaged):
 	def onStart(self):
-		self.addForm('MAIN', ConnectForm, name="Connect to your postgreSQL database!", columns=80, lines=25, draw_line_at = 22)
-		self.addForm('MAINMENU', MainForm, name="Open the Menu to view available actions.", columns=80, lines=25)
-		self.addForm('SQL_RUN', SQLForm, name="SQL Runner", columns=80, lines=25)
-		self.addForm('CHOOSE', ChooseTableForm, name="Choose a table", columns=80, lines=25)
-		self.addForm('BROWSE', BrowseForm, name="Browse", columns=80, lines=25)
-		self.addForm('STRUCTURE', StructureForm, name="Structure", columns=80, lines=25)
+		self.addForm('MAIN', ConnectForm, name="Connect to your postgreSQL database!", draw_line_at = 22)
+		self.addForm('MAINMENU', MainForm, name="Open the Menu to view available actions.")
+		self.addForm('SQL_RUN', SQLForm, name="SQL Runner", draw_line_at = 8)
+		self.addForm('CHOOSE', ChooseTableForm, name="Choose a table")
+		self.addForm('BROWSE', BrowseForm, name="Browse")
+		self.addForm('STRUCTURE', StructureForm, name="Structure")
 
 if __name__ == "__main__":
 	app = App().run()
