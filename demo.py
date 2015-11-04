@@ -193,13 +193,15 @@ class SQLForm(npyscreen.SplitForm, MainForm):
 			c.close()
 
 	def nextPage(self):
-		self.page += 1
+		if self.page < self.total_pages - 1: # Only show pages that have data
+			self.page += 1
 		self.displayResultsGrid(self.page)
 		self.SQL_display.update(clear=False)
 		self.display()
 
 	def prevPage(self):
-		self.page -= 1
+		if self.page > 0: 
+			self.page -= 1
 		self.displayResultsGrid(self.page)
 		self.SQL_display.update(clear=False)
 		self.display()
@@ -248,15 +250,10 @@ class ChooseTableForm(npyscreen.ActionFormMinimal, MainForm):
 		self.table_list.values = self.parentApp.psql.get_table_list()
 		self.table_list.display()
 		
-	#def afterEditing(self):
-	#	self.parentApp.setNextForm('BROWSE') 
-		
-class BrowseForm(npyscreen.SplitForm, npyscreen.ActionFormMinimal, MainForm): # Triple inheritance, terrible idea?
+class BrowseForm(npyscreen.ActionFormMinimal, MainForm):
 
-	OK_BUTTON_TEXT = "Run Query"
-	OK_BUTTON_BR_OFFSET = (15, 6)
-
-	MAX_PAGE_SIZE = 7
+	OK_BUTTON_TEXT = "Return to Main"
+	MAX_PAGE_SIZE = 15
 
 	def create(self):
 
@@ -274,15 +271,16 @@ class BrowseForm(npyscreen.SplitForm, npyscreen.ActionFormMinimal, MainForm): # 
 		self.menu.addItem("Quit Application", self.exit_form, "^X")
 	
 		# widgets
-		self.SQL_display = self.add(npyscreen.GridColTitles, max_height=9, editable=False, rely=(self.get_half_way() + 1))
+		self.SQL_display = self.add(npyscreen.GridColTitles, max_height=17, editable=False, rely=(2))
 	
-		self.next_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Next]', relx=-13, rely=-3)
+		self.next_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Next]', relx=-13, rely=-5)
 		self.next_page_btn.whenPressed = self.nextPage
 
-		self.prev_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Prev]', relx=-23, rely=-3)
+		self.prev_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Prev]', relx=-23, rely=-5)
 		self.prev_page_btn.whenPressed = self.prevPage
 		
 	def beforeEditing(self):
+		self.name = "Browsing table %s" % self.value
 		try:
 			#	psql stmt execution
 			self.colnames, self.results = self.parentApp.psql.browse_table(self.value)
@@ -294,15 +292,20 @@ class BrowseForm(npyscreen.SplitForm, npyscreen.ActionFormMinimal, MainForm): # 
 			
 		except Exception, e:
 			npyscreen.notify_confirm("e: %s" % e)
+			
+	def afterEditing(self):
+		self.parentApp.setNextForm('MAINMENU')
 
 	def nextPage(self):
-		self.page += 1
+		if self.page < self.total_pages - 1:
+			self.page += 1
 		self.displayResultsGrid(self.page)
 		self.SQL_display.update(clear=False)
 		self.display()
 
 	def prevPage(self):
-		self.page -= 1
+		if self.page > 0:
+			self.page -= 1
 		self.displayResultsGrid(self.page)
 		self.SQL_display.update(clear=False)
 		self.display()
