@@ -173,6 +173,7 @@ class SQLForm(npyscreen.SplitForm, MainForm):
 	
 		# widgets
 		self.SQL_command = self.add(npyscreen.MultiLineEdit, max_height=5, scroll_exit=True)
+		self.results_per_page_title_text = self.add(npyscreen.TitleText, begin_entry_at=31, max_width=40, rely=7, name="# Results Per Page (Max 10):", value="10")
 		self.SQL_display = self.add(npyscreen.GridColTitles, max_height=12, editable=False, rely=9)
 	
 		self.first_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[First]', relx=-43, rely=-3)
@@ -187,9 +188,20 @@ class SQLForm(npyscreen.SplitForm, MainForm):
 		self.last_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Last]', relx=-13, rely=-3)
 		self.last_page_btn.whenPressed = self.lastPage
 
-
 	def afterEditing(self):
+	
+		# get # of rows per page
 		try:
+			self.results_per_page = int(self.results_per_page_title_text.value)
+			if self.results_per_page < 1:
+				self.results_per_page = 1
+			elif self.results_per_page > 10:
+				self.results_per_page = 10
+		except:
+			npyscreen.notify_confirm("Error: You may only display 1-10 results per page.")
+			self.parentApp.switchForm('SQL_RUN')
+			
+		try:		
 			#	psql stmt execution
 			c = self.parentApp.psql.conn.cursor()
 			c.execute(self.SQL_command.value)
@@ -200,7 +212,7 @@ class SQLForm(npyscreen.SplitForm, MainForm):
 			
 			# pagination
 			self.page = 0
-			self.total_pages = int(ceil(len(self.results) / float(self.MAX_PAGE_SIZE)))
+			self.total_pages = int(ceil(len(self.results) / float(self.results_per_page)))
 			self.displayResultsGrid(self.page)
 
 			# psql stmt close
@@ -248,8 +260,8 @@ class SQLForm(npyscreen.SplitForm, MainForm):
 		self.SQL_display.col_titles = self.colnames
 
 		# pagination
-		start = self.page * self.MAX_PAGE_SIZE
-		end = start + self.MAX_PAGE_SIZE
+		start = self.page * self.results_per_page
+		end = start + self.results_per_page
 
 		# grid results displayed from 2d array
 		self.SQL_display.values = []
@@ -280,11 +292,16 @@ class ChooseTableForm(npyscreen.ActionFormMinimal, MainForm):
 		self.menu.addItem("Browse", self.browse, "b")
 		self.menu.addItem("Close Menu", self.close_menu, "^c")
 		self.menu.addItem("Quit Application", self.exit_form, "^X")
-		
-		self.table_list = self.add(TableList, scroll_exit = True)
+				
+		self.table_list = self.add(TableList, rely = 4, scroll_exit = True)
 	
 	#Pretty shamelessly stolen from http://npyscreen.readthedocs.org/example-addressbk.html
 	def beforeEditing(self):
+		if self.parentApp.action == 'b':
+			self.parentApp.results_per_page = self.add(npyscreen.TitleText, begin_entry_at=31, rely = 2, name="# Results Per Page (Max 15):", value="15")
+		#	if self.parentApp.results_per_page > 15 or self.parentApp..results_per_page < 1:
+		#		npyscreen.notify_confirm("Error. Please enter a number between 1 - 15.")
+				
 		self.table_list.values = self.parentApp.psql.get_table_list()
 		self.table_list.display()
 		
@@ -308,7 +325,7 @@ class BrowseForm(npyscreen.ActionFormMinimal, MainForm):
 		self.menu.addItem("Close Menu", self.close_menu, "^c")
 		self.menu.addItem("Quit Application", self.exit_form, "^X")
 	
-		# widgets
+		# widgets		
 		self.SQL_display = self.add(npyscreen.GridColTitles, max_height=17, editable=False, rely=(2))
 		
 		self.first_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[First]', relx=-43, rely=-5)
@@ -324,6 +341,16 @@ class BrowseForm(npyscreen.ActionFormMinimal, MainForm):
 		self.last_page_btn.whenPressed = self.lastPage
 		
 	def beforeEditing(self):
+		try:
+			self.parentApp.results_per_page = int(self.parentApp.results_per_page.value)
+			if self.parentApp.results_per_page < 1:
+				self.parentApp.results_per_page = 1
+			elif self.parentApp.results_per_page > 15:
+				self.parentApp.results_per_page = 15
+		except:
+			npyscreen.notify_confirm("Error: You may only display 1-15 results per page.")
+			self.parentApp.switchForm('CHOOSE')
+		
 		self.name = "Browsing table %s" % self.value
 		try:
 			#	psql stmt execution
@@ -331,7 +358,7 @@ class BrowseForm(npyscreen.ActionFormMinimal, MainForm):
 
 			# pagination
 			self.page = 0
-			self.total_pages = int(ceil(len(self.results) / float(self.MAX_PAGE_SIZE)))
+			self.total_pages = int(ceil(len(self.results) / float(self.parentApp.results_per_page)))
 			self.displayResultsGrid(self.page)
 			
 		except Exception, e:
@@ -371,9 +398,8 @@ class BrowseForm(npyscreen.ActionFormMinimal, MainForm):
 		self.SQL_display.col_titles = self.colnames
 
 		# pagination
-		start = self.page * self.MAX_PAGE_SIZE
-		end = start + self.MAX_PAGE_SIZE
-
+		start = self.page * self.parentApp.results_per_page
+		end = start + self.parentApp.results_per_page
 		# grid results displayed from 2d array
 		self.SQL_display.values = []
 		for result in self.results[start:end]:
