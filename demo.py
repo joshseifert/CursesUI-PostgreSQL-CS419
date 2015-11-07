@@ -6,10 +6,10 @@ from math import ceil
 
 class ConnectForm(npyscreen.ActionForm, npyscreen.SplitForm):
 
-	OK_BUTTON_TEXT = "Connect"	# Reposition, rename buttons to indicate functionality
-	OK_BUTTON_BR_OFFSET = (2, 15)
-	CANCEL_BUTTON_TEXT = "Quit"
-	CANCEL_BUTTON_BR_OFFSET = (2, 8)
+	OK_BUTTON_TEXT = "Quit"	# Reposition, rename buttons to indicate functionality
+	OK_BUTTON_BR_OFFSET = (2, 8)
+	CANCEL_BUTTON_TEXT = "Connect"
+	CANCEL_BUTTON_BR_OFFSET = (2, 15)
 	
 	def create(self):
 		self.dbname = self.add(npyscreen.TitleText, begin_entry_at=24, name="Database Name:", value="myapp")
@@ -19,7 +19,7 @@ class ConnectForm(npyscreen.ActionForm, npyscreen.SplitForm):
 		self.dbport = self.add(npyscreen.TitleText, begin_entry_at=24, name="Database Port:", value="15432")
 
 	#Connect to the database using psycopg2 library. Reference: http://initd.org/psycopg/docs/module.html#psycopg2.connect
-	def on_ok(self):
+	def on_cancel(self):
 		try:
 			self.parentApp.sql = PostgreSQL(self.dbname.value, self.dbuser.value, self.dbpass.value, self.dbhost.value, self.dbport.value)
 			npyscreen.notify_confirm("Successfully connected to the database!","Connected", editw=1)
@@ -28,7 +28,7 @@ class ConnectForm(npyscreen.ActionForm, npyscreen.SplitForm):
 			npyscreen.notify_confirm("Error: Could not connect to database. If you are unsure, do not alter the Host or Port values.")
 			self.parentApp.setNextForm('MAIN')
 
-	def on_cancel(self):
+	def on_ok(self):
 		exiting = npyscreen.notify_yes_no("Are you sure you want to quit?","Cancel?")
 		if exiting:
 			npyscreen.notify_confirm("Goodbye!")
