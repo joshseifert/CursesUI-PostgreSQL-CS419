@@ -1,75 +1,9 @@
 #!/usr/bin/env python
 
 import npyscreen
-import psycopg2
+from postgres import *
 from math import ceil
 
-# Changed this to make it more object-oriented, in case we do MySQL later...
-class PostgreSQL():
-	def __init__(self, database, user, password, host, port):
-		self.conn = psycopg2.connect(database=database, 
-			user=user, 
-			password=password, 
-			host=host, 
-			port=port)
-			
-	def run_sql(self, query):
-		pass # Optional, if we want to refactor to be more OO
-		
-	def table_structure(self, table_name):
-		try:
-			c = self.conn.cursor()
-			#https://docs.oracle.com/cd/E17952_01/refman-5.0-en/columns-table.html
-			#Trying to formulate this based on the PHPMyAdmin screen, it doesn't all fit horizontally. Make it vertical?
-			c.execute("SELECT column_name, data_type, \
-				collation_name, is_nullable, column_default FROM \
-				information_schema.columns WHERE table_name = '%s';" % table_name)
-			colnames = [desc[0] for desc in c.description]
-			results = c.fetchall()
-			return colnames, results
-		except Exception, e:
-			npyscreen.notify_confirm("e: %s" % e)
-			c.execute("ROLLBACK;")			
-		finally:
-			c.close()	
-		
-	def browse_table(self, table_name):
-		try:
-			c = self.conn.cursor()
-			c.execute("SELECT * FROM %s;" % table_name)
-			colnames = [desc[0] for desc in c.description]
-			results = c.fetchall()
-			return colnames, results
-		except Exception, e:
-			npyscreen.notify_confirm("e: %s" % e)
-			c.execute("ROLLBACK;")			
-		finally:
-			c.close()
-			
-	def get_table_list(self):
-		try:
-			# http://www.linuxscrew.com/2009/07/03/postgresql-show-tables-show-databases-show-columns/
-			c = self.conn.cursor()
-			c.execute("SELECT table_name FROM information_schema.tables WHERE table_schema='public';")
-			result = c.fetchall()
-			tables = []
-			for table in result:
-				tables.append(str(table).split("'")[1])	
-			return tables
-		except Exception, e:
-			npyscreen.notify_confirm("e: %s" % e)
-			c.execute("ROLLBACK;")
-		finally:
-			c.close()
-
-"""
-This is the first page the user will encounter. It prompts them to enter the database information.
-The values of "myapp" and "dbpass" are part of the vagrantfile, so I made them the default values. I believe
-that vagrantfile defines the default host as something other than 5432, but that port defaults to whatever
-port vagrant actually uses, and 5432 is a standard value, so I'm leaving it as it. I'm honestly not super 
-sure why the host needs to be 0.0.0.0...I got that just from googling. Psycopg says it uses "UNIX socket"
-(whatever that means) but I don't think it works on VMs.
-"""
 class ConnectForm(npyscreen.ActionForm, npyscreen.SplitForm):
 
 	OK_BUTTON_TEXT = "Connect"	# Reposition, rename buttons to indicate functionality
@@ -87,8 +21,7 @@ class ConnectForm(npyscreen.ActionForm, npyscreen.SplitForm):
 	#Connect to the database using psycopg2 library. Reference: http://initd.org/psycopg/docs/module.html#psycopg2.connect
 	def on_ok(self):
 		try:
-			self.parentApp.psql = PostgreSQL(self.dbname.value, self.dbuser.value, self.dbpass.value, self.dbhost.value, self.dbport.value)
-			#self.parentApp.psql = psycopg2.connect(database=self.dbname.value, user=self.dbuser.value, password=self.dbpass.value, host=self.dbhost.value, port=self.dbport.value)
+			self.parentApp.sql = PostgreSQL(self.dbname.value, self.dbuser.value, self.dbpass.value, self.dbhost.value, self.dbport.value)
 			npyscreen.notify_confirm("Successfully connected to the database!","Connected", editw=1)
 			self.parentApp.setNextForm('MAINMENU')
 		except:
@@ -154,8 +87,6 @@ class SQLForm(npyscreen.SplitForm, MainForm):
 	OK_BUTTON_TEXT = "Run Query"
 	OK_BUTTON_BR_OFFSET = (18, 6)
 
-	MAX_PAGE_SIZE = 10
-
 	def create(self):
 
 		# globals
@@ -202,33 +133,17 @@ class SQLForm(npyscreen.SplitForm, MainForm):
 			self.parentApp.switchForm('SQL_RUN')
 			
 		try:		
-			#	psql stmt execution
-			c = self.parentApp.psql.conn.cursor()
-			c.execute(self.SQL_command.value)
-			
-			# http://stackoverflow.com/questions/10252247/how-do-i-get-a-list-of-column-names-from-a-psycopg2-cursor
-			self.colnames = [desc[0] for desc in c.description]
-			self.results = c.fetchall()
+			#	sql stmt execution
+			self.colnames, self.results = self.parentApp.sql.run_sql(self.SQL_command.value)
 			
 			# pagination
 			self.page = 0
 			self.total_pages = int(ceil(len(self.results) / float(self.results_per_page)))
 			self.displayResultsGrid(self.page)
-
-			# psql stmt close
-			c.close()
-
 			
 		except Exception, e:
 			npyscreen.notify_confirm("e: %s" % e)
-			
-			# psql transactions posted after a failed transaction
-			# on the same cxn will fail if the original transaction 
-			# is not rolled back first
-			# http://stackoverflow.com/questions/10399727/psqlexception-current-transaction-is-aborted-commands-ignored-until-end-of-tra
-			c.execute("ROLLBACK;")
-			c.close()
-			
+					
 	def firstPage(self):
 		self.page = 0
 		self.displayResultsGrid(self.page)
@@ -302,7 +217,7 @@ class ChooseTableForm(npyscreen.ActionFormMinimal, MainForm):
 		#	if self.parentApp.results_per_page > 15 or self.parentApp..results_per_page < 1:
 		#		npyscreen.notify_confirm("Error. Please enter a number between 1 - 15.")
 				
-		self.table_list.values = self.parentApp.psql.get_table_list()
+		self.table_list.values = self.parentApp.sql.get_table_list()
 		self.table_list.display()
 		
 class BrowseForm(npyscreen.ActionFormMinimal, MainForm):
@@ -353,8 +268,8 @@ class BrowseForm(npyscreen.ActionFormMinimal, MainForm):
 		
 		self.name = "Browsing table %s" % self.value
 		try:
-			#	psql stmt execution
-			self.colnames, self.results = self.parentApp.psql.browse_table(self.value)
+			#	sql stmt execution
+			self.colnames, self.results = self.parentApp.sql.browse_table(self.value)
 
 			# pagination
 			self.page = 0
@@ -440,8 +355,8 @@ class StructureForm(npyscreen.SplitForm, MainForm):
 	def beforeEditing(self):
 		self.name = "Structure of Table %s" % self.value
 		try:
-			#	psql stmt execution
-			self.colnames, self.results = self.parentApp.psql.table_structure(self.value)
+			#	sql stmt execution
+			self.colnames, self.results = self.parentApp.sql.table_structure(self.value)
 
 			# pagination
 			self.page = 0
