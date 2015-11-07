@@ -19,6 +19,9 @@ class ConnectForm(npyscreen.ActionForm, npyscreen.SplitForm):
 		self.dbport = self.add(npyscreen.TitleText, begin_entry_at=24, name="Database Port:", value="15432")
 
 	#Connect to the database using psycopg2 library. Reference: http://initd.org/psycopg/docs/module.html#psycopg2.connect
+	
+	# Want the application to tab to "connect" before it tabs to "quit". Because npyscreen ALWAYS tabs to "cancel" before "ok",
+	# simply changed the function names around, so that "cancel" connects and "ok" quits.
 	def on_cancel(self):
 		try:
 			self.parentApp.sql = PostgreSQL(self.dbname.value, self.dbuser.value, self.dbpass.value, self.dbhost.value, self.dbport.value)
