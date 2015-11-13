@@ -10,8 +10,9 @@ class ConnectForm(npyscreen.ActionForm, npyscreen.SplitForm):
 	OK_BUTTON_BR_OFFSET = (2, 8)
 	CANCEL_BUTTON_TEXT = "Connect"
 	CANCEL_BUTTON_BR_OFFSET = (2, 15)
+	ALLOW_RESIZE = False
 	
-	def create(self):
+	def create(self):		
 		self.dbname = self.add(npyscreen.TitleText, begin_entry_at=24, name="Database Name:", value="myapp")
 		self.dbuser = self.add(npyscreen.TitleText, begin_entry_at=24, name="Database User:", value="myapp")
 		self.dbpass = self.add(npyscreen.TitleText, begin_entry_at=24, name="Database Password:", value="dbpass")
@@ -40,6 +41,7 @@ class ConnectForm(npyscreen.ActionForm, npyscreen.SplitForm):
 			npyscreen.notify_confirm("Please enter login information.", "Back to it!")
 			
 class MainForm(npyscreen.FormWithMenus):
+
 	def create(self):
 		self.menu = self.new_menu(name="Main Menu", shortcut='m')
 		self.menu.addItem("Structure", self.structure, "s")
@@ -78,7 +80,8 @@ class MainForm(npyscreen.FormWithMenus):
 		exiting = npyscreen.notify_yes_no("Are you sure you want to quit?","Quit?")
 		if exiting:
 			npyscreen.notify_confirm("Goodbye!")
-			self.parentApp.switchForm(None)
+			exit() #fixed the exit problem!
+			#self.parentApp.switchForm(None)
 		else:
 			pass
 			
@@ -200,7 +203,7 @@ class TableList(npyscreen.MultiLineAction):
 			self.parent.parentApp.switchForm('STRUCTURE')
 			
 class ChooseTableForm(npyscreen.ActionFormMinimal, MainForm):
-
+	
 	OK_BUTTON_TEXT = "Back to Main Menu"
 		
 	def create(self):
@@ -224,7 +227,7 @@ class ChooseTableForm(npyscreen.ActionFormMinimal, MainForm):
 		self.table_list.display()
 		
 class BrowseForm(npyscreen.ActionFormMinimal, MainForm):
-
+	
 	OK_BUTTON_TEXT = "Return to Main"
 	MAX_PAGE_SIZE = 15
 
@@ -328,6 +331,7 @@ class BrowseForm(npyscreen.ActionFormMinimal, MainForm):
 	
 	
 class StructureForm(npyscreen.SplitForm, MainForm):
+
 	OK_BUTTON_TEXT = "Return to Main"
 	MAX_PAGE_SIZE = 15
 
