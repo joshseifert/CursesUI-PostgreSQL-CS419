@@ -244,109 +244,166 @@ class ChooseTableForm(npyscreen.ActionFormMinimal, MainForm):
 # BROWSE FORM
 ################################################################
 
-class BrowseForm(npyscreen.ActionFormMinimal, MainForm):
-	
-	OK_BUTTON_TEXT = "Return to Main"
-	MAX_PAGE_SIZE = 15
+#class BrowseForm(npyscreen.ActionFormMinimal, MainForm):
+#	
+#	OK_BUTTON_TEXT = "Return to Main"
+#	MAX_PAGE_SIZE = 15
+#
+#	def create(self):
+#
+#		# globals
+#		self.page = 0
+#		self.colnames = []
+#		self.results = []
+#
+#		# menu items
+#		self.menu = self.new_menu(name="Main Menu", shortcut='m')
+#		self.menu.addItem("Structure", self.structure, "s")
+#		self.menu.addItem("SQL Runner", self.sql_run, "q")
+#		self.menu.addItem("Browse", self.browse, "b")
+#		self.menu.addItem("Close Menu", self.close_menu, "^c")
+#		self.menu.addItem("Quit Application", self.exit_form, "^X")
+#	
+#		# widgets		
+#		self.SQL_display = self.add(npyscreen.GridColTitles, max_height=17, editable=False, rely=(2))
+#		
+#		self.first_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[First]', relx=-43, rely=-5)
+#		self.first_page_btn.whenPressed = self.firstPage
+#	
+#		self.prev_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Prev]', relx=-33, rely=-5)
+#		self.prev_page_btn.whenPressed = self.prevPage
+#	
+#		self.next_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Next]', relx=-23, rely=-5)
+#		self.next_page_btn.whenPressed = self.nextPage
+#		
+#		self.last_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Last]', relx=-13, rely=-5)
+#		self.last_page_btn.whenPressed = self.lastPage
+#		
+#	def beforeEditing(self):
+#		try:
+#			self.parentApp.results_per_page = int(self.parentApp.results_per_page.value)
+#			if self.parentApp.results_per_page < 1:
+#				self.parentApp.results_per_page = 1
+#			elif self.parentApp.results_per_page > 15:
+#				self.parentApp.results_per_page = 15
+#		except:
+#			npyscreen.notify_confirm("Error: You may only display 1-15 results per page.")
+#			self.parentApp.switchForm('CHOOSE')
+#		
+#		self.name = "Browsing table %s" % self.value
+#		try:
+#			#	sql stmt execution
+#			self.colnames, self.results = self.parentApp.sql.browse_table(self.value)
+#
+#			# pagination
+#			self.page = 0
+#			self.total_pages = int(ceil(len(self.results) / float(self.parentApp.results_per_page)))
+#			self.displayResultsGrid(self.page)
+#			
+#		except Exception, e:
+#			npyscreen.notify_confirm("e: %s" % e)
+#			
+#	def afterEditing(self):
+#		self.parentApp.setNextForm('MAINMENU')
+#		
+#	def firstPage(self):
+#		self.page = 0
+#		self.displayResultsGrid(self.page)
+#		self.SQL_display.update(clear=False)
+#		self.display()
+#		
+#	def lastPage(self):
+#		self.page = self.total_pages - 1
+#		self.displayResultsGrid(self.page)
+#		self.SQL_display.update(clear=False)
+#		self.display()
+#	
+#	def nextPage(self):
+#		if self.page < self.total_pages - 1:
+#			self.page += 1
+#		self.displayResultsGrid(self.page)
+#		self.SQL_display.update(clear=False)
+#		self.display()
+#
+#	def prevPage(self):
+#		if self.page > 0:
+#			self.page -= 1
+#		self.displayResultsGrid(self.page)
+#		self.SQL_display.update(clear=False)
+#		self.display()
+#
+#	def displayResultsGrid(self, page):
+#		# column titles
+#		self.SQL_display.col_titles = self.colnames
+#
+#		# pagination
+#		start = self.page * self.parentApp.results_per_page
+#		end = start + self.parentApp.results_per_page
+#		# grid results displayed from 2d array
+#		self.SQL_display.values = []
+#		for result in self.results[start:end]:
+#			row = []
+#			for i in xrange(0, len(self.colnames)):
+#				row.append(result[i])
+#			self.SQL_display.values.append(row)
 
-	def create(self):
 
-		# globals
-		self.page = 0
-		self.colnames = []
-		self.results = []
+class BrowseList(npyscreen.MultiLineAction):
+	def display_value(self, v1):
+		colNum = len(v1)
+		return '\n'.join(['%s' % str(v1[i]).ljust(20) for i in range(0, colNum)])
 
-		# menu items
+	def actionHighlighted(self, act_on_this, keypress):
+		self.parent.parentApp.getForm('EDITBROWSEFM').value = act_on_this
+		self.parent.parentApp.getForm('EDITBROWSEFM').name = act_on_this[1]
+		#self.parent.parentApp.getForm('EDITBROWSEFM').fields = (str(act_on_this[i]) for i in range(0, len(act_on_this)))
+		self.parent.parentApp.switchForm('EDITBROWSEFM')		
+
+class BrowseForm(npyscreen.FormMutt, MainForm):
+	MAIN_WIDGET_CLASS = BrowseList
+
+	def beforeEditing(self):
+		self.update_list()
 		self.menu = self.new_menu(name="Main Menu", shortcut='m')
 		self.menu.addItem("Structure", self.structure, "s")
 		self.menu.addItem("SQL Runner", self.sql_run, "q")
 		self.menu.addItem("Browse", self.browse, "b")
 		self.menu.addItem("Close Menu", self.close_menu, "^c")
 		self.menu.addItem("Quit Application", self.exit_form, "^X")
-	
-		# widgets		
-		self.SQL_display = self.add(npyscreen.GridColTitles, max_height=17, editable=False, rely=(2))
-		
-		self.first_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[First]', relx=-43, rely=-5)
-		self.first_page_btn.whenPressed = self.firstPage
-	
-		self.prev_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Prev]', relx=-33, rely=-5)
-		self.prev_page_btn.whenPressed = self.prevPage
-	
-		self.next_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Next]', relx=-23, rely=-5)
-		self.next_page_btn.whenPressed = self.nextPage
-		
-		self.last_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Last]', relx=-13, rely=-5)
-		self.last_page_btn.whenPressed = self.lastPage
-		
-	def beforeEditing(self):
-		try:
-			self.parentApp.results_per_page = int(self.parentApp.results_per_page.value)
-			if self.parentApp.results_per_page < 1:
-				self.parentApp.results_per_page = 1
-			elif self.parentApp.results_per_page > 15:
-				self.parentApp.results_per_page = 15
-		except:
-			npyscreen.notify_confirm("Error: You may only display 1-15 results per page.")
-			self.parentApp.switchForm('CHOOSE')
-		
-		self.name = "Browsing table %s" % self.value
-		try:
-			#	sql stmt execution
-			self.colnames, self.results = self.parentApp.sql.browse_table(self.value)
 
-			# pagination
-			self.page = 0
-			self.total_pages = int(ceil(len(self.results) / float(self.parentApp.results_per_page)))
-			self.displayResultsGrid(self.page)
+	def update_list(self):
+		self.wMain.values = self.parentApp.sql.browse_table(self.value)
+		self.wMain.display()
+		
+class EditBrowse(npyscreen.ActionForm):
+	def create(self):
+
+		self.value = None
+		self.wgColumName = self.add(npyscreen.TitleText, name="Column Name: ")
+		self.wgNullable = self.add(npyscreen.TitleSelectOne, max_height=4, value = [1,], name="Nullable: ",
+               values = ["True","False"], scroll_exit=True)
 			
-		except Exception, e:
-			npyscreen.notify_confirm("e: %s" % e)
-			
-	def afterEditing(self):
-		self.parentApp.setNextForm('MAINMENU')
-		
-	def firstPage(self):
-		self.page = 0
-		self.displayResultsGrid(self.page)
-		self.SQL_display.update(clear=False)
-		self.display()
-		
-	def lastPage(self):
-		self.page = self.total_pages - 1
-		self.displayResultsGrid(self.page)
-		self.SQL_display.update(clear=False)
-		self.display()
-	
-	def nextPage(self):
-		if self.page < self.total_pages - 1:
-			self.page += 1
-		self.displayResultsGrid(self.page)
-		self.SQL_display.update(clear=False)
-		self.display()
+		self.wgDataType = self.add(npyscreen.TitleSelectOne, max_height=4, value = [1,], name="Data Type: ",
+            values = ["integer",
+			"double precision",
+			"character varying",
+			"character","boolean",
+			"date",
+			"json",
+			"serial",
+			"text"], scroll_exit=True)
+		self.wgCollationName = self.add(npyscreen.TitleText, name="Collation Name: ")
+		self.wgDefault = self.add(npyscreen.TitleText, name="Default: ")
+		''' TODO: add the rest of the fields '''
 
-	def prevPage(self):
-		if self.page > 0:
-			self.page -= 1
-		self.displayResultsGrid(self.page)
-		self.SQL_display.update(clear=False)
-		self.display()
+	def on_ok(self):
 
-	def displayResultsGrid(self, page):
-		# column titles
-		self.SQL_display.col_titles = self.colnames
+		''' TODO: add code here to actually commit changes to db '''
+		self.parentApp.switchForm('BROWSE')
 
-		# pagination
-		start = self.page * self.parentApp.results_per_page
-		end = start + self.parentApp.results_per_page
-		# grid results displayed from 2d array
-		self.SQL_display.values = []
-		for result in self.results[start:end]:
-			row = []
-			for i in xrange(0, len(self.colnames)):
-				row.append(result[i])
-			self.SQL_display.values.append(row)
-	
+	def on_cancel(self):
+		self.parentApp.switchForm('BROWSE')
+
 ################################################################
 # STRUCTURE FORM
 ################################################################
@@ -368,31 +425,61 @@ class StructureList(npyscreen.MultiLineAction):
 		return '\n'.join(['%s' % str(v1[i]).ljust(20) for i in range(0, colNum)])
 
 	def actionHighlighted(self, act_on_this, keypress):
-		self.parent.parentApp.getForm('EDITRECORDFM').value = act_on_this
-		self.parent.parentApp.switchForm('EDITRECORDFM')
+		self.parent.parentApp.getForm('EDITSTRUCTUREFM').value = act_on_this
+		self.parent.parentApp.getForm('EDITSTRUCTUREFM').name = act_on_this[0]
+		self.parent.parentApp.switchForm('EDITSTRUCTUREFM')
 
 class StructureForm(npyscreen.FormMutt, MainForm):
 	MAIN_WIDGET_CLASS = StructureList
 
 	def beforeEditing(self):
 		self.update_list()
+		self.menu = self.new_menu(name="Main Menu", shortcut='m')
+		self.menu.addItem("Structure", self.structure, "s")
+		self.menu.addItem("SQL Runner", self.sql_run, "q")
+		self.menu.addItem("Browse", self.browse, "b")
+		self.menu.addItem("Close Menu", self.close_menu, "^c")
+		self.menu.addItem("Quit Application", self.exit_form, "^X")
 
 	def update_list(self):
 		self.wMain.values = self.parentApp.sql.table_structure(self.value)
 		self.wMain.display()
 
-class EditRecord(npyscreen.ActionForm):
+class EditStructure(npyscreen.ActionForm):
 	def create(self):
 
 		self.value = None
-		self.wgNullable = self.add(npyscreen.TitleText, name="Nullable:")
+		self.wgColumName = self.add(npyscreen.TitleText, name="Column Name: ")
+		self.wgNullable = self.add(npyscreen.TitleSelectOne, max_height=4, value = [1,], name="Nullable: ",
+               values = ["Yes","No"], scroll_exit=True)
+			
+		self.wgDataType = self.add(npyscreen.TitleSelectOne, max_height=4, value = [1,], name="Data Type: ",
+            values = ["integer",
+			"double precision",
+			"character varying",
+			"character","boolean",
+			"date",
+			"json",
+			"serial",
+			"text"], scroll_exit=True)
+		self.wgCollationName = self.add(npyscreen.TitleText, name="Collation Name: ")
+		self.wgDefault = self.add(npyscreen.TitleText, name="Default: ")
 
-		''' TODO: add the rest of the fields '''
-
+	def beforeEditing(self):
+		self.wgColumName.value = self.value[0]
+		
+		self.wgCollationName.value = self.value[2]
+		
+		if self.value[3] == "YES":
+			self.wgNullable.value = [0,]
+		else:
+			self.wgNullable.value = [1,]
+			
+		self.wgDefault.value = self.value[4]
+		
 	def on_ok(self):
 
 		''' TODO: add code here to actually commit changes to db '''
-
 		self.parentApp.switchForm('STRUCTURE')
 
 	def on_cancel(self):
@@ -491,7 +578,8 @@ class App(npyscreen.NPSAppManaged):
 		self.addForm('CHOOSE', ChooseTableForm, name="Choose a table")
 		self.addForm('BROWSE', BrowseForm, name="Browse")
 		self.addForm('STRUCTURE', StructureForm, name="Structure")
-		self.addForm('EDITRECORDFM', EditRecord, name="EditRecord")
+		self.addForm('EDITSTRUCTUREFM', EditStructure, name="EditStructure")
+		self.addForm('EDITBROWSEFM', EditBrowse, name="EditBrowse")
 
 if __name__ == "__main__":
 	app = App().run()
