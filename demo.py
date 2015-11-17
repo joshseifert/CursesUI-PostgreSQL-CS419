@@ -4,6 +4,10 @@ import npyscreen
 from postgres import *
 from math import ceil
 
+################################################################
+# CONNECT FORM
+################################################################
+
 class ConnectForm(npyscreen.ActionForm, npyscreen.SplitForm):
 
 	OK_BUTTON_TEXT = "Quit"	# Reposition, rename buttons to indicate functionality
@@ -39,7 +43,11 @@ class ConnectForm(npyscreen.ActionForm, npyscreen.SplitForm):
 			self.parentApp.setNextForm(None)
 		else:
 			npyscreen.notify_confirm("Please enter login information.", "Back to it!")
-			
+
+################################################################
+# MAIN TITLE SCREEN
+################################################################
+
 class MainForm(npyscreen.FormWithMenus):
 
 	def create(self):
@@ -88,6 +96,9 @@ class MainForm(npyscreen.FormWithMenus):
 	def close_menu(self):
 		pass
 
+################################################################
+# SQL RUNNER FORM
+################################################################
 
 class SQLForm(npyscreen.SplitForm, MainForm):
 	OK_BUTTON_TEXT = "Run Query"
@@ -192,6 +203,9 @@ class SQLForm(npyscreen.SplitForm, MainForm):
 				row.append(result[i])
 			self.SQL_display.values.append(row)
 
+################################################################
+# TABLE LIST FORM
+################################################################
 
 class TableList(npyscreen.MultiLineAction):
     def actionHighlighted(self, act_on_this, keypress):
@@ -225,7 +239,11 @@ class ChooseTableForm(npyscreen.ActionFormMinimal, MainForm):
 				
 		self.table_list.values = self.parentApp.sql.get_table_list()
 		self.table_list.display()
-		
+
+################################################################
+# BROWSE FORM
+################################################################
+
 class BrowseForm(npyscreen.ActionFormMinimal, MainForm):
 	
 	OK_BUTTON_TEXT = "Return to Main"
@@ -329,84 +347,141 @@ class BrowseForm(npyscreen.ActionFormMinimal, MainForm):
 				row.append(result[i])
 			self.SQL_display.values.append(row)
 	
-	
-class StructureForm(npyscreen.SplitForm, MainForm):
+################################################################
+# STRUCTURE FORM
+################################################################
 
-	OK_BUTTON_TEXT = "Return to Main"
-	MAX_PAGE_SIZE = 15
+class StructureList(npyscreen.MultiLineAction):
 
+	def display_value(self, v1):
+		'''
+		Bit of contra-intuitive magic here. The v1 values that get passed
+		from wMain.values are not, in fact, a list of lists, but just a 
+		bunch of pseudo related lists. So v[0] actually represents column 0
+		for all rows (and will subsequently print out column 0 for all rows).
+
+		This return statement creates a 20x wide left-justified column cell 
+		for each column and displays it to the screen as a text field.
+
+		'''
+		colNum = len(v1)
+		return '\n'.join(['%s' % str(v1[i]).ljust(20) for i in range(0, colNum)])
+
+	def actionHighlighted(self, act_on_this, keypress):
+		self.parent.parentApp.getForm('EDITRECORDFM').value = act_on_this
+		self.parent.parentApp.switchForm('EDITRECORDFM')
+
+class StructureForm(npyscreen.FormMutt, MainForm):
+	MAIN_WIDGET_CLASS = StructureList
+
+	def beforeEditing(self):
+		self.update_list()
+
+	def update_list(self):
+		self.wMain.values = self.parentApp.sql.table_structure(self.value)
+		self.wMain.display()
+
+class EditRecord(npyscreen.ActionForm):
 	def create(self):
 
-		# globals
-		self.page = 0
-		self.colnames = []
-		self.results = []
+		self.value = None
+		self.wgNullable = self.add(npyscreen.TitleText, name="Nullable:")
 
-		# menu items
-		self.menu = self.new_menu(name="Main Menu", shortcut='m')
-		self.menu.addItem("Structure", self.structure, "s")
-		self.menu.addItem("SQL Runner", self.sql_run, "q")
-		self.menu.addItem("Browse", self.browse, "b")
-		self.menu.addItem("Close Menu", self.close_menu, "^c")
-		self.menu.addItem("Quit Application", self.exit_form, "^X")
+		''' TODO: add the rest of the fields '''
+
+	def on_ok(self):
+
+		''' TODO: add code here to actually commit changes to db '''
+
+		self.parentApp.switchForm('STRUCTURE')
+
+	def on_cancel(self):
+		self.parentApp.switchForm('STRUCTURE')
+
+
+
+# class StructureForm(npyscreen.SplitForm, MainForm):
+
+# 	OK_BUTTON_TEXT = "Return to Main"
+# 	MAX_PAGE_SIZE = 15
+
+# 	def create(self):
+
+# 		# globals
+# 		self.page = 0
+# 		self.colnames = []
+# 		self.results = []
+
+# 		# menu items
+# 		self.menu = self.new_menu(name="Main Menu", shortcut='m')
+# 		self.menu.addItem("Structure", self.structure, "s")
+# 		self.menu.addItem("SQL Runner", self.sql_run, "q")
+# 		self.menu.addItem("Browse", self.browse, "b")
+# 		self.menu.addItem("Close Menu", self.close_menu, "^c")
+# 		self.menu.addItem("Quit Application", self.exit_form, "^X")
 	
-		# widgets
-		self.SQL_display = self.add(npyscreen.GridColTitles, max_height=17, editable=False, rely=(2))
+# 		# widgets
+# 		self.SQL_display = self.add(npyscreen.GridColTitles, max_height=17, editable=False, rely=(2))
 	
-		self.next_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Next]', relx=-13, rely=-5)
-		self.next_page_btn.whenPressed = self.nextPage
+# 		self.next_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Next]', relx=-13, rely=-5)
+# 		self.next_page_btn.whenPressed = self.nextPage
 
-		self.prev_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Prev]', relx=-23, rely=-5)
-		self.prev_page_btn.whenPressed = self.prevPage
+# 		self.prev_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Prev]', relx=-23, rely=-5)
+# 		self.prev_page_btn.whenPressed = self.prevPage
 		
-	def beforeEditing(self):
-		self.name = "Structure of Table %s" % self.value
-		try:
-			#	sql stmt execution
-			self.colnames, self.results = self.parentApp.sql.table_structure(self.value)
+# 	def beforeEditing(self):
+# 		self.name = "Structure of Table %s" % self.value
+# 		try:
+# 			#	sql stmt execution
+# 			self.colnames, self.results = self.parentApp.sql.table_structure(self.value)
 
-			# pagination
-			self.page = 0
-			self.total_pages = int(ceil(len(self.results) / float(self.MAX_PAGE_SIZE)))
-			self.displayResultsGrid(self.page)
+# 			# pagination
+# 			self.page = 0
+# 			self.total_pages = int(ceil(len(self.results) / float(self.MAX_PAGE_SIZE)))
+# 			self.displayResultsGrid(self.page)
 			
-		except Exception, e:
-			npyscreen.notify_confirm("e: %s" % e)
+# 		except Exception, e:
+# 			npyscreen.notify_confirm("e: %s" % e)
 			
-	def afterEditing(self):
-		self.parentApp.setNextForm('MAINMENU')
+# 	def afterEditing(self):
+# 		self.parentApp.setNextForm('MAINMENU')
 
-	def nextPage(self):
-		if self.page < self.total_pages - 1:
-			self.page += 1
-		self.displayResultsGrid(self.page)
-		self.SQL_display.update(clear=False)
-		self.display()
+# 	def nextPage(self):
+# 		if self.page < self.total_pages - 1:
+# 			self.page += 1
+# 		self.displayResultsGrid(self.page)
+# 		self.SQL_display.update(clear=False)
+# 		self.display()
 
-	def prevPage(self):
-		if self.page > 0:
-			self.page -= 1
-		self.displayResultsGrid(self.page)
-		self.SQL_display.update(clear=False)
-		self.display()
+# 	def prevPage(self):
+# 		if self.page > 0:
+# 			self.page -= 1
+# 		self.displayResultsGrid(self.page)
+# 		self.SQL_display.update(clear=False)
+# 		self.display()
 
-	def displayResultsGrid(self, page):
-		# column titles
-		self.SQL_display.col_titles = self.colnames
+# 	def displayResultsGrid(self, page):
 
-		# pagination
-		start = self.page * self.MAX_PAGE_SIZE
-		end = start + self.MAX_PAGE_SIZE
+# 		# pagination
+# 		start = self.page * self.MAX_PAGE_SIZE
+# 		end = start + self.MAX_PAGE_SIZE
 
-		# grid results displayed from 2d array
-		self.SQL_display.values = []
-		for result in self.results[start:end]:
-			row = []
-			for i in xrange(0, len(self.colnames)):
-				row.append(result[i])
-			self.SQL_display.values.append(row)
+# 		# column titles
+# 		self.SQL_display.col_titles = ['E', 'X'] + self.colnames
+
+# 		# grid results displayed from 2d array
+# 		columnNum = len(self.colnames)
+# 		self.SQL_display.values = []
+# 		for result in self.results[start:end]:
+# 			row = []
+# 			row.append()
+# 			for i in xrange(0, columnNum):
+# 				row.append(result[i])
+# 			self.SQL_display.values.append(row)
 		
-
+################################################################
+# APP SETUP
+################################################################
 			
 class App(npyscreen.NPSAppManaged):
 	def onStart(self):
@@ -416,6 +491,7 @@ class App(npyscreen.NPSAppManaged):
 		self.addForm('CHOOSE', ChooseTableForm, name="Choose a table")
 		self.addForm('BROWSE', BrowseForm, name="Browse")
 		self.addForm('STRUCTURE', StructureForm, name="Structure")
+		self.addForm('EDITRECORDFM', EditRecord, name="EditRecord")
 
 if __name__ == "__main__":
 	app = App().run()
