@@ -55,10 +55,10 @@ class PostgreSQL():
 			colnames = [desc[0] for desc in c.description]
 			results = c.fetchall()
 			rows = []
-			rows.append(colnames)
+			#rows.append(colnames)
 			for result in results:
 				rows.append(list(result))
-			return rows
+			return colnames, rows
 		except Exception, e:
 			npyscreen.notify_confirm("e: %s" % e)
 			c.execute("ROLLBACK;")			
