@@ -404,16 +404,21 @@ class EditRowForm(npyscreen.ActionForm):
 		self.cols = [] # self.columns is a reserved name. BAD DOCUMENTATION.
 		yPos = 2
 		
+		self.col_types = (self.parentApp.sql.get_col_type(self.table_name))
+		
+		#npyscreen.notify_confirm(str(self.col_types))
+		
 		if self.action == 'edit':
 			self.name = "Edit Row"
-			for a, b in zip(self.col_names, self.col_values):
+			for i, (a, b) in enumerate(zip(self.col_names, self.col_values)):
 				#equivalent to self.cols[x] = self.add ...
-				self.cols.append(self.add(npyscreen.TitleText, name = str(a), value=str(b), rely = yPos))
+				self.cols.append(self.add(npyscreen.TitleText, name = str(a) + " (" + str(self.col_types[i])[2:-2] + ")", value=str(b), rely = yPos, begin_entry_at=30))
 				yPos += 1
 		else:
 			self.name = "Add Row"
-			for a in self.col_names:
-				self.cols.append(self.add(npyscreen.TitleText, name = str(a)))
+			for i, a in enumerate(self.col_names):
+				self.cols.append(self.add(npyscreen.TitleText, name = str(a) + " (" + str(self.col_types[i])[2:-2] + ")", rely = yPos, begin_entry_at=30))
+				yPos += 1
 		
 		"""
 		Iffy solution to a problem here. Can't define the values of the widgets when the application starts, 

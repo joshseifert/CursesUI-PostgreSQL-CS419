@@ -98,8 +98,25 @@ class PostgreSQL():
 		finally:
 			c.close()
 			
-	def edit_row(self, table_name, columns, new_values, old_values):	
-	
+	def get_col_type(self, table_name):
+		try:
+			c = self.conn.cursor()
+			c.execute("SELECT data_type FROM \
+				information_schema.columns WHERE table_name = '%s';" % table_name)
+			results = c.fetchall()
+			rows = []
+			for result in results:
+				rows.append(list(result))
+			# npyscreen.notify_confirm(str(rows)) # Debug
+			return rows
+		except Exception, e:
+			npyscreen.notify_confirm("e: %s" % e)
+			c.execute("ROLLBACK;")			
+		finally:
+			c.close()	
+			
+	def edit_row(self, table_name, columns, new_values, old_values):
+
 		#This part is just building the query string
 		query_string = "UPDATE %s SET " % table_name
 		for x in range(0, len(columns)):
@@ -119,7 +136,8 @@ class PostgreSQL():
 			npyscreen.notify_confirm("e: %s" % e)
 			c.execute("ROLLBACK;")
 		finally:
-			c.close()
+			c.close() 
+
 			
 	def add_row(self, table_name, columns, new_values):
 		query_string = "INSERT INTO %s (" % table_name
