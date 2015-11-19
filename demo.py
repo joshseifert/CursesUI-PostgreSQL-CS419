@@ -296,12 +296,18 @@ class BrowseForm(npyscreen.ActionFormMinimal, MainForm):
 		self.last_page_btn.whenPressed = self.lastPage	
 		
 	def addRow(self):
-		npyscreen.notify_confirm("TODO: Add")
-		
+		#npyscreen.notify_confirm("TODO: Add")
+		self.parentApp.getForm('EDITROW').col_names = self.colnames
+		self.parentApp.getForm('EDITROW').action = "add"
+		self.parentApp.getForm('EDITROW').table_name = self.value
+		self.parentApp.switchForm('EDITROW')
+			
 	def editRow(self):
 		if self.SQL_display.value:
 			self.parentApp.getForm('EDITROW').col_names = self.colnames
 			self.parentApp.getForm('EDITROW').col_values = self.results[self.SQL_display.value[0]]
+			self.parentApp.getForm('EDITROW').action = "edit"
+			self.parentApp.getForm('EDITROW').table_name = self.value
 			self.parentApp.switchForm('EDITROW')
 		
 	def deleteRow(self):
@@ -393,106 +399,59 @@ class EditRowForm(npyscreen.ActionForm):
 	def create(self):
 		self.value = None
 
-
 	def beforeEditing(self):
-		npyscreen.notify_confirm(str(self.col_names)) # debug
-		npyscreen.notify_confirm(str(self.col_values))
+				
+		self.cols = [] # self.columns is a reserved name. BAD DOCUMENTATION.
+		yPos = 2
 		
-		self.columns = []
+		if self.action == 'edit':
+			self.name = "Edit Row"
+			for a, b in zip(self.col_names, self.col_values):
+				#equivalent to self.cols[x] = self.add ...
+				self.cols.append(self.add(npyscreen.TitleText, name = str(a), value=str(b), rely = yPos))
+				yPos += 1
+		else:
+			self.name = "Add Row"
+			for a in self.col_names:
+				self.cols.append(self.add(npyscreen.TitleText, name = str(a)))
 		
+		"""
+		Iffy solution to a problem here. Can't define the values of the widgets when the application starts, 
+		because each table will have different fields. So they have to go in beforeEditing. This copies them every time 
+		the form is called. Call the same form twice, you see each widget twice. Call any form enough times and the screen runs 
+		out of space and throws a fatal error.
+		
+		self.cols is just a list of return values, if you delete them, the widgets are still part of 
+		the form. Per npyscreen documentation, you CANNOT delete widgets. The only solution I could think of was to make the widgets
+		hidden (invisible) and uneditable, and then just shove them in the corner of the screen. Then, position the new widgets right 
+		on top of where the old widgets used to be. It's inelegant, but it's a limitation of the library, and there are literally 0 
+		instances of this on the internet, as far as I can see.
+		"""
+		
+	def afterEditing(self):
+		if self.cols:
+			for item in self.cols:
+				item.rely=22
+				item.relx=40
+				item.hidden = True
+				item.editable = False	
 
-
-		self.columns.append(self.add(npyscreen.TitleText, name = self.col_names[0]))
-		
-		#for x in self.col_names:
-		#	npyscreen.notify_confirm(x)
-		#	self.columns[i] = self.add(npyscreen.TitleText, name=x, max_height=2)
-		#	self.nextrely += 2
 					
 	def on_ok(self):
+		self.new_values = []
+		for item in self.cols:
+			self.new_values.append(item.value)
+		if self.action == "edit":
+			self.parentApp.sql.edit_row(self.table_name, self.col_names, self.new_values, self.col_values)			
+		else:
+			self.parentApp.sql.add_row(self.table_name, self.col_names, self.new_values)
+	
 		self.parentApp.switchForm('BROWSE')
 
 	def on_cancel(self):
 		self.parentApp.switchForm('BROWSE')	
 			
-"""
-class BrowseList(npyscreen.MultiLineAction):
-	def display_value(self, v1):
-		colNum = len(v1)
-		return '\n'.join(['%s' % str(v1[i]).ljust(20) for i in range(0, colNum)])
 
-	def actionHighlighted(self, act_on_this, keypress):
-		self.parent.parentApp.getForm('EDITBROWSEFM').value = act_on_this
-		self.parent.parentApp.getForm('EDITBROWSEFM').name = act_on_this[1]
-		#self.parent.parentApp.getForm('EDITBROWSEFM').fields = (str(act_on_this[i]) for i in range(0, len(act_on_this)))
-		self.parent.parentApp.switchForm('EDITBROWSEFM')		
-
-class BrowseForm(npyscreen.FormMutt, MainForm):
-	MAIN_WIDGET_CLASS = BrowseList
-	
-	def create(self):
-		self.SQL_display = self.add(npyscreen.GridColTitles, max_height=17, editable=False, rely=(2))
-
-	def beforeEditing(self):
-		self.update_list()
-		self.menu = self.new_menu(name="Main Menu", shortcut='m')
-		self.menu.addItem("Structure", self.structure, "s")
-		self.menu.addItem("SQL Runner", self.sql_run, "q")
-		self.menu.addItem("Browse", self.browse, "b")
-		self.menu.addItem("Close Menu", self.close_menu, "^c")
-		self.menu.addItem("Quit Application", self.exit_form, "^X")
-
-	def update_list(self):
-		self.colnames, self.wMain.values = self.parentApp.sql.browse_table(self.value)
-		self.wMain.display()
-		
-		
-#	def displayResultsGrid(self, page):
-#		# column titles
-#		self.SQL_display.col_titles = self.colnames
-#
-#		# pagination
-#		start = self.page * self.parentApp.results_per_page
-#		end = start + self.parentApp.results_per_page
-#		# grid results displayed from 2d array
-#		self.SQL_display.values = []
-#		for result in self.results[start:end]:
-#			row = []
-#			for i in xrange(0, len(self.colnames)):
-#				row.append(result[i])
-#			self.SQL_display.values.append(row)
-		
-		
-		
-class EditBrowse(npyscreen.ActionForm):
-	def create(self):
-
-		self.value = None
-		self.wgColumName = self.add(npyscreen.TitleText, name="Column Name: ")
-		self.wgNullable = self.add(npyscreen.TitleSelectOne, max_height=4, value = [1,], name="Nullable: ",
-               values = ["True","False"], scroll_exit=True)
-			
-		self.wgDataType = self.add(npyscreen.TitleSelectOne, max_height=4, value = [1,], name="Data Type: ",
-            values = ["integer",
-			"double precision",
-			"character varying",
-			"character","boolean",
-			"date",
-			"json",
-			"serial",
-			"text"], scroll_exit=True)
-		self.wgCollationName = self.add(npyscreen.TitleText, name="Collation Name: ")
-		self.wgDefault = self.add(npyscreen.TitleText, name="Default: ")
-		''' TODO: add the rest of the fields '''
-
-	def on_ok(self):
-
-		''' TODO: add code here to actually commit changes to db '''
-		self.parentApp.switchForm('BROWSE')
-
-	def on_cancel(self):
-		self.parentApp.switchForm('BROWSE')
-"""
 ################################################################
 # STRUCTURE FORM
 ################################################################

@@ -85,16 +85,57 @@ class PostgreSQL():
 		query_string = '('
 		for x in range(0, len(columns)):
 			query_string += (columns[x] + " = '" + str(values[x]) + "' AND ")
-		query_string = "DELETE FROM %s WHERE " % table_name + query_string[:-5] + ');'
-		
-		#query_string[:-5] + ');'
-		
+		query_string = "DELETE FROM %s WHERE " % table_name + query_string[:-5] + ');'	
 		npyscreen.notify_confirm(query_string) # debug
 		
 		try:
 			c = self.conn.cursor()
 			c.execute(query_string)
 			npyscreen.notify_confirm("Row deleted.")
+		except Exception, e:
+			npyscreen.notify_confirm("e: %s" % e)
+			c.execute("ROLLBACK;")
+		finally:
+			c.close()
+			
+	def edit_row(self, table_name, columns, new_values, old_values):	
+	
+		#This part is just building the query string
+		query_string = "UPDATE %s SET " % table_name
+		for x in range(0, len(columns)):
+			query_string += (columns[x] + " = '" + str(new_values[x]) + "', ")
+		query_string = query_string[:-2] + ' WHERE ('
+		for x in range(0, len(columns)):
+			query_string += (columns[x] + " = '" + str(old_values[x]) + "' AND ")
+		query_string = query_string[:-5] + ');'
+
+		npyscreen.notify_confirm(query_string) # debug
+
+		try:
+			c = self.conn.cursor()
+			c.execute(query_string)
+			npyscreen.notify_confirm("Row updated.")
+		except Exception, e:
+			npyscreen.notify_confirm("e: %s" % e)
+			c.execute("ROLLBACK;")
+		finally:
+			c.close()
+			
+	def add_row(self, table_name, columns, new_values):
+		query_string = "INSERT INTO %s (" % table_name
+		for x in range(0, len(columns)):
+			query_string += (str(columns[x])) + ","
+		query_string = query_string[:-1] + ") VALUES ('"
+		for x in range(0, len(columns)):
+			query_string += (str(new_values[x])) + "','"
+		query_string = query_string[:-2] + ");"
+		
+		npyscreen.notify_confirm(query_string) # debug
+		
+		try:
+			c = self.conn.cursor()
+			c.execute(query_string)
+			npyscreen.notify_confirm("Row added.")
 		except Exception, e:
 			npyscreen.notify_confirm("e: %s" % e)
 			c.execute("ROLLBACK;")
