@@ -211,7 +211,7 @@ class TableList(npyscreen.MultiLineAction):
     def actionHighlighted(self, act_on_this, keypress):
 		if self.parent.parentApp.action == 'b':
 			self.parent.parentApp.getForm('BROWSE').value = act_on_this
-			self.parent.parentApp.switchForm('BROWSE') # implement some kind of logic here, so it can route to "Structure" form, too
+			self.parent.parentApp.switchForm('BROWSE')
 		else:
 			self.parent.parentApp.getForm('STRUCTURE').value = act_on_this
 			self.parent.parentApp.switchForm('STRUCTURE')
@@ -219,6 +219,9 @@ class TableList(npyscreen.MultiLineAction):
 class ChooseTableForm(npyscreen.ActionFormMinimal, MainForm):
 	
 	OK_BUTTON_TEXT = "Back to Main Menu"
+	
+	def on_ok(self):
+		self.parentApp.switchForm('MAINMENU')
 		
 	def create(self):
 		self.menu = self.new_menu(name="Main Menu", shortcut='m')
@@ -249,6 +252,9 @@ class BrowseForm(npyscreen.ActionFormMinimal, MainForm):
 	OK_BUTTON_TEXT = "Return to Main"
 	MAX_PAGE_SIZE = 15
 
+	def on_ok(self):
+		self.parentApp.switchForm('MAINMENU')
+	
 	def create(self):
 
 		# globals
@@ -293,9 +299,10 @@ class BrowseForm(npyscreen.ActionFormMinimal, MainForm):
 		npyscreen.notify_confirm("TODO: Add")
 		
 	def editRow(self):
-		npyscreen.notify_confirm("TODO: Edit")
 		if self.SQL_display.value:
-			npyscreen.notify_confirm(str(self.results[self.SQL_display.value[0]]))
+			self.parentApp.getForm('EDITROW').col_names = self.colnames
+			self.parentApp.getForm('EDITROW').col_values = self.results[self.SQL_display.value[0]]
+			self.parentApp.switchForm('EDITROW')
 		
 	def deleteRow(self):
 		if self.SQL_display.value:
@@ -338,8 +345,8 @@ class BrowseForm(npyscreen.ActionFormMinimal, MainForm):
 		except Exception, e:
 			npyscreen.notify_confirm("e: %s" % e)
 			
-	def afterEditing(self):
-		self.parentApp.setNextForm('MAINMENU')
+	#def afterEditing(self):
+	#	self.parentApp.setNextForm('MAINMENU')
 		
 	def firstPage(self):
 		self.page = 0
@@ -381,6 +388,33 @@ class BrowseForm(npyscreen.ActionFormMinimal, MainForm):
 			for i in xrange(0, len(self.colnames)):
 				row.append(result[i])
 			self.SQL_display.values.append(row)
+			
+class EditRowForm(npyscreen.ActionForm):
+	def create(self):
+		self.value = None
+
+
+	def beforeEditing(self):
+		npyscreen.notify_confirm(str(self.col_names)) # debug
+		npyscreen.notify_confirm(str(self.col_values))
+		
+		self.columns = []
+		
+
+
+		self.columns.append(self.add(npyscreen.TitleText, name = self.col_names[0]))
+		
+		#for x in self.col_names:
+		#	npyscreen.notify_confirm(x)
+		#	self.columns[i] = self.add(npyscreen.TitleText, name=x, max_height=2)
+		#	self.nextrely += 2
+					
+	def on_ok(self):
+		self.parentApp.switchForm('BROWSE')
+
+	def on_cancel(self):
+		self.parentApp.switchForm('BROWSE')	
+			
 """
 class BrowseList(npyscreen.MultiLineAction):
 	def display_value(self, v1):
@@ -657,7 +691,8 @@ class App(npyscreen.NPSAppManaged):
 		self.addForm('CHOOSE', ChooseTableForm, name="Choose a table")
 		self.addForm('BROWSE', BrowseForm, name="Browse")
 		self.addForm('STRUCTURE', StructureForm, name="Structure")
-		#self.addForm('EDITSTRUCTUREFM', EditStructure, name="EditStructure")
+		self.addForm('EDITSTRUCTUREFM', EditStructure, name="EditStructure")
+		self.addForm('EDITROW', EditRowForm, name="Edit Row")
 		#self.addForm('EDITBROWSEFM', EditBrowse, name="EditBrowse")
 
 if __name__ == "__main__":
