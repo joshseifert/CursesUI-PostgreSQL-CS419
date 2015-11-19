@@ -265,9 +265,8 @@ class BrowseForm(npyscreen.ActionFormMinimal, MainForm):
 		self.menu.addItem("Quit Application", self.exit_form, "^X")
 	
 		# widgets
-		self.SQL_display = self.add(npyscreen.SelectOne, max_height=17, editable=True, scroll_exit=True, select_whole_line=True, rely=(2))
-		
-		#self.SQL_display = self.add(npyscreen.GridColTitles, max_height=17, editable=True, scroll_exit=True, select_whole_line=True, rely=(2))
+		self.SQL_display = self.add(npyscreen.SelectOne, max_height=17, editable=True, scroll_exit=True, select_whole_line=True, rely=(4))
+		self.col_display = self.add(npyscreen.FixedText, rely=(2))
 		
 		self.add_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Add]', relx=-73, rely=-5)
 		self.add_btn.whenPressed = self.addRow
@@ -288,18 +287,26 @@ class BrowseForm(npyscreen.ActionFormMinimal, MainForm):
 		self.next_page_btn.whenPressed = self.nextPage
 		
 		self.last_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Last]', relx=-43, rely=-3)
-		self.last_page_btn.whenPressed = self.lastPage
+		self.last_page_btn.whenPressed = self.lastPage	
 		
 	def addRow(self):
 		npyscreen.notify_confirm("TODO: Add")
 		
 	def editRow(self):
 		npyscreen.notify_confirm("TODO: Edit")
-		npyscreen.notify_confirm(str(self.results[self.SQL_display.value[0]]))
+		if self.SQL_display.value:
+			npyscreen.notify_confirm(str(self.results[self.SQL_display.value[0]]))
 		
 	def deleteRow(self):
-		npyscreen.notify_confirm("TODO: Delete")
-		npyscreen.notify_confirm(str(self.results[self.SQL_display.value[0]]))
+		if self.SQL_display.value:
+			self.yesOrNo = npyscreen.notify_yes_no("You are about to delete a row. This action cannot be undone. Proceed?")
+			if self.yesOrNo:
+				#npyscreen.notify_confirm(str(self.colnames))
+				#npyscreen.notify_confirm(str(self.results[self.SQL_display.value[0]]))
+				self.parentApp.sql.delete_row(self.value, self.colnames, self.results[self.SQL_display.value[0]]) #table name, column names, column values
+				self.parentApp.setNextForm('BROWSE') # refresh page (in theory). Takes to main menu since our menu is buggy...
+			else:
+				npyscreen.notify_confirm("Aborted. Your row was NOT deleted.")
 		
 	def beforeEditing(self):
 		try:
@@ -316,6 +323,12 @@ class BrowseForm(npyscreen.ActionFormMinimal, MainForm):
 		try:
 			#	sql stmt execution
 			self.colnames, self.results = self.parentApp.sql.browse_table(self.value)
+			
+			col_names = ' ' * 3
+			for x in range(0, len(self.colnames)):
+				col_names += " | " + self.colnames[x]
+			
+			self.col_display.value = col_names
 
 			# pagination
 			self.page = 0
@@ -326,7 +339,6 @@ class BrowseForm(npyscreen.ActionFormMinimal, MainForm):
 			npyscreen.notify_confirm("e: %s" % e)
 			
 	def afterEditing(self):
-		#npyscreen.notify_confirm(str(self.SQL_display.values[0][1])) # Richmond, [x][0] to get primary key id
 		self.parentApp.setNextForm('MAINMENU')
 		
 	def firstPage(self):
