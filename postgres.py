@@ -51,7 +51,7 @@ class PostgreSQL():
 	def browse_table(self, table_name):
 		try:
 			c = self.conn.cursor()
-			c.execute("SELECT * FROM %s;" % table_name)
+			c.execute("SELECT * FROM %s ORDER BY 1 ASC;" % table_name)
 			colnames = [desc[0] for desc in c.description]
 			results = c.fetchall()
 			rows = []
