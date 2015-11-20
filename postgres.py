@@ -8,6 +8,10 @@ class PostgreSQL():
 			password=password, 
 			host=host, 
 			port=port)
+		c = self.conn.cursor()
+		c.execute("ROLLBACK;")
+		c.close()
+		
 			
 	def run_sql(self, query):
 		try:
