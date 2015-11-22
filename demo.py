@@ -388,7 +388,7 @@ class BrowseForm(npyscreen.ActionFormMinimal, MainForm):
 			if self.yesOrNo:
 				# This passes the table name, column names, column values to the function that deletes the row.
 				self.parentApp.sql.delete_row(self.value, self.colnames, self.results[self.SQL_display.value[0]]) 
-				self.parentApp.setNextForm('BROWSE') # TODO: Make this refresh page automatically
+				self.parentApp.switchForm('BROWSE')
 			else:
 				npyscreen.notify_confirm("Aborted. Your row was NOT deleted.")
 		else:
