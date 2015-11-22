@@ -196,8 +196,8 @@ class SQLForm(npyscreen.SplitForm, MainForm):
 			self.total_pages = int(ceil(len(self.results) / float(self.results_per_page)))
 			self.displayResultsGrid(self.page)
 			
-		except Exception, e:
-			npyscreen.notify_confirm("e: %s" % e)
+		except Exception, e:			
+			npyscreen.notify_confirm("e: %s" % e) #this is where the "nonetype object not iterable" error is being thrown. 
 	
 	# These are the functions of the pagination buttons
 	def firstPage(self):
@@ -753,7 +753,8 @@ class EditFieldForm(npyscreen.ActionForm):
 			"txid_snapshot",
 			"uuid",
 			"xml"], scroll_exit=True)
-		self.wgCollationName = self.add(npyscreen.TitleText, name="Collation Name: ")
+		#the next line of code was throwing an error I couldn't fix. program seems to be working with it commented out
+		#self.wgCollationName = self.add(npyscreen.TitleText, name="Collation Name: ")
 		self.wgDefault = self.add(npyscreen.TitleText, name="Default: ")
 
 	def beforeEditing(self):

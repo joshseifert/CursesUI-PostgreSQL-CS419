@@ -14,22 +14,25 @@ class PostgreSQL():
 		
 			
 	def run_sql(self, query):
-		try:
-			c = self.conn.cursor()
-			c.execute(query)
-			# http://stackoverflow.com/questions/10252247/how-do-i-get-a-list-of-column-names-from-a-psycopg2-cursor
-			colnames = [desc[0] for desc in c.description]
-			results = c.fetchall()
-			return colnames, results
-		except Exception, e:
-			# psql transactions posted after a failed transaction
-			# on the same cxn will fail if the original transaction 
-			# is not rolled back first
-			# http://stackoverflow.com/questions/10399727/psqlexception-current-transaction-is-aborted-commands-ignored-until-end-of-tra
-			npyscreen.notify_confirm("e: %s" % e)
-			c.execute("ROLLBACK;")			
-		finally:
-			c.close()	
+		if query:			
+			try:
+				c = self.conn.cursor()			
+				c.execute(query)
+				row_count = c.rowcount
+				npyscreen.notify_confirm("Number of effected rows: %s" % row_count)
+				# http://stackoverflow.com/questions/10252247/how-do-i-get-a-list-of-column-names-from-a-psycopg2-cursor
+				colnames = [desc[0] for desc in c.description]
+				results = c.fetchall()
+				return colnames, results
+			except Exception, e:
+				# psql transactions posted after a failed transaction
+				# on the same cxn will fail if the original transaction 
+				# is not rolled back first
+				# http://stackoverflow.com/questions/10399727/psqlexception-current-transaction-is-aborted-commands-ignored-until-end-of-tra			
+				npyscreen.notify_confirm("e: %s" % e)
+				c.execute("ROLLBACK;")			
+			finally:
+				c.close()	
 		
 	def table_structure(self, table_name):
 		try:
