@@ -719,7 +719,7 @@ class EditFieldForm(npyscreen.ActionForm):
 		self.wgNullable = self.add(npyscreen.TitleSelectOne, max_height=4, value = [1,], name="Nullable: ",
                values = ["Yes","No"], scroll_exit=True)
 			
-		self.wgDataType = self.add(npyscreen.TitleSelectOne, max_height=15, value = [0,], name="Data Type: ",
+		self.wgDataType = self.add(npyscreen.TitleSelectOne, max_height=10, value = [0,], name="Data Type: ",
             values = [
       "bigint",
 			"bigserial",
@@ -753,7 +753,7 @@ class EditFieldForm(npyscreen.ActionForm):
 			"txid_snapshot",
 			"uuid",
 			"xml"], scroll_exit=True)
-		self.wgCollationName = self.add(npyscreen.TitleText, name="Collation Name: ")
+		self.wgCollationName = self.add(npyscreen.TitleText, name="Collation:")
 		self.wgDefault = self.add(npyscreen.TitleText, name="Default: ")
 
 	def beforeEditing(self):
