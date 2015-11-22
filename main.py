@@ -75,15 +75,37 @@ class MainForm(npyscreen.FormWithMenus):
 		self.menu.addItem("Close Menu", self.close_menu, "c")
 		self.menu.addItem("Quit Application", self.exit_form, "^X")
 	
-		#Description of our program for the user
-		self.add(npyscreen.MultiLineEdit, value="Welcome!\n\n\
+		#Description of our program for the user, with ASCII art for visual flair
+		self.add(npyscreen.MultiLineEdit, editable=False, value="\
+                            ________________  Welcome!\n\
+                           /               /| \n\
+                          /_______________/ | This is an NCurses and \n\
+    ________________      |  __________  |  | Npyscreen-based database UI\n\
+   /               /|     | |          | |  | \n\
+  /               / |     | | NCurses  | |  | Press ctrl-x to open the \n\
+ /_______________/  |/\   | |          | |  | navigation window.\n\
+(_______________(   |  \  | |__________| | /    \n\
+(_______________(   |   \ |______________|/ ___/\ \n\
+(_______________(  /     |____>______<_____/     \ \n\
+(_______________( /     / = ==== ==== ==== /|    _|_ \n\
+(   postgreSQL  (/     / ========= === ===/ /   //// \n\
+(_______________      / ========= === ===/ /   /__/  \n\
+                     <__________________<_/     \n\n\
+			You may Browse tables in your database, viewing, selecting, editing, and \n\
+			deleting individual rows. You may also view and edit the structure of \n\
+			tables, and perform more complex queries with manual SQL commands.\n\n\
+			This is project for CS 419 - Group 9: \n\
+					Josh Seifert, Emma Murray, Bailey Roe\n")
+
+		
+	"""	self.add(npyscreen.MultiLineEdit, value="Welcome!\n\n\
 			This is an NCurses and Npyscreen-based database UI\n\n\
 			You may Browse tables in your database, viewing, selecting, editing, and \n\
 			deleting individual rows. You may also view and edit the structure of \n\
 			tables, and perform more complex queries with manual SQL commands.\n\n\
 			This is project for CS 419 - Group 9: \n\
 					Josh Seifert, Emma Murray, Bailey Roe\n\n\
-			Press ctrl-x to open the navigation window.", editable=False)
+			Press ctrl-x to open the navigation window.", editable=False) """
 		
 	# Allows the user to quit the program
 	def on_ok(self):
@@ -170,11 +192,6 @@ class SQLForm(npyscreen.SplitForm, MainForm):
 		
 		self.last_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Last]', relx=-13, rely=-3, editable=False)
 		self.last_page_btn.whenPressed = self.lastPage
-
-#	def beforeEditing(self):
-		# prevent error if user selects pagination buttons before running query
-#		self.total_pages = 0
-#		self.results_per_page = 10
 		
 	def afterEditing(self):
 	
@@ -194,18 +211,19 @@ class SQLForm(npyscreen.SplitForm, MainForm):
 			
 		try:		
 			# sql stmt execution
-			self.colnames, self.results = self.parentApp.sql.run_sql(self.SQL_command.value)
+			if self.SQL_command.value != '':
+				self.colnames, self.results = self.parentApp.sql.run_sql(self.SQL_command.value)
 			
-			# pagination
-			self.page = 0
-			self.total_pages = int(ceil(len(self.results) / float(self.results_per_page)))
-			self.displayResultsGrid(self.page)
-			
-			# User may select pagination buttons only once query is run
-			self.first_page_btn.editable = True
-			self.prev_page_btn.editable = True
-			self.next_page_btn.editable = True
-			self.last_page_btn.editable = True
+				# pagination
+				self.page = 0
+				self.total_pages = int(ceil(len(self.results) / float(self.results_per_page)))
+				self.displayResultsGrid(self.page)
+				
+				# User may select pagination buttons only once query is run
+				self.first_page_btn.editable = True
+				self.prev_page_btn.editable = True
+				self.next_page_btn.editable = True
+				self.last_page_btn.editable = True
 			
 			
 		except Exception, e:
