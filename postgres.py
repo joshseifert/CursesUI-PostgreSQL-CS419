@@ -13,17 +13,23 @@ class PostgreSQL():
 		c.close()
 		
 			
-	def run_sql(self, query):
+	def run_sql(self, query, return_flag):
 		if query:			
 			try:
 				c = self.conn.cursor()			
 				c.execute(query)
-				row_count = c.rowcount
-				npyscreen.notify_confirm("Number of effected rows: %s" % row_count)
-				# http://stackoverflow.com/questions/10252247/how-do-i-get-a-list-of-column-names-from-a-psycopg2-cursor
-				colnames = [desc[0] for desc in c.description]
-				results = c.fetchall()
-				return colnames, results
+				
+				if query[:6].upper() in ['INSERT','UPDATE','DELETE']:
+					row_count = c.rowcount
+					npyscreen.notify_confirm("Successful " + query[0:6] + " on %s rows" % row_count)
+				
+				if return_flag:
+					# http://stackoverflow.com/questions/10252247/how-do-i-get-a-list-of-column-names-from-a-psycopg2-cursor
+					colnames = [desc[0] for desc in c.description]
+					results = c.fetchall()
+					return colnames, results
+				else:
+					return
 			except Exception, e:
 				# psql transactions posted after a failed transaction
 				# on the same cxn will fail if the original transaction 
