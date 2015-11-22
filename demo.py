@@ -544,56 +544,184 @@ class EditRowForm(npyscreen.ActionForm):
 ################################################################
 # STRUCTURE FORM
 #
-# TODO
+# The structure form allows a user to add, edit or delete from 
+# the structure of a table, meaning the fields and information 
+# associated with the fields, as permitted by the underlying 
+# database implementation.
 ################################################################
 
-class StructureList(npyscreen.MultiLineAction):
+class StructureForm(npyscreen.ActionFormMinimal, MainForm):
 
-	def display_value(self, v1):
-		'''
-		Bit of contra-intuitive magic here. The v1 values that get passed
-		from wMain.values are not, in fact, a list of lists, but just a 
-		bunch of pseudo related lists. So v[0] actually represents column 0
-		for all rows (and will subsequently print out column 0 for all rows).
+	OK_BUTTON_TEXT = "Return to Main"
+	MAX_PAGE_SIZE = 15
 
-		This return statement creates a 20x wide left-justified column cell 
-		for each column and displays it to the screen as a text field.
+	def on_ok(self):
+		self.parentApp.switchForm('MAINMENU')
 
-		'''
-		colNum = len(v1)
-		return '\n'.join(['%s' % str(v1[i]).ljust(20) for i in range(0, colNum)])
+	def create(self):
 
-	def actionHighlighted(self, act_on_this, keypress):
-		self.parent.parentApp.getForm('EDITSTRUCTUREFM').value = act_on_this
-		self.parent.parentApp.getForm('EDITSTRUCTUREFM').name = act_on_this[0]
-		self.parent.parentApp.switchForm('EDITSTRUCTUREFM')
+		# globals
+		self.page = 0
+		self.colnames = []
+		self.results = []
 
-class StructureForm(npyscreen.FormMutt, MainForm):
-	MAIN_WIDGET_CLASS = StructureList
-
-	def beforeEditing(self):
-		self.update_list()
+		# menu items
 		self.menu = self.new_menu(name="Main Menu", shortcut='m')
 		self.menu.addItem("Structure", self.structure, "s")
 		self.menu.addItem("SQL Runner", self.sql_run, "q")
 		self.menu.addItem("Browse", self.browse, "b")
 		self.menu.addItem("Close Menu", self.close_menu, "^c")
 		self.menu.addItem("Quit Application", self.exit_form, "^X")
+	
+		# widgets
+		self.SQL_display = self.add(npyscreen.SelectOne, max_height=17, editable=True, scroll_exit=True, select_whole_line=True, rely=(4))
+		self.col_display = self.add(npyscreen.FixedText, rely=(2))
+		
+		self.add_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Add]', relx=-73, rely=-5)
+		self.add_btn.whenPressed = self.addField
+		
+		self.edit_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Edit]', relx=-63, rely=-5)
+		self.edit_btn.whenPressed = self.editField
+		
+		self.delete_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Delete]', relx=-53, rely=-5)	
+		self.delete_btn.whenPressed = self.deleteField
+		
+		self.first_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[First]', relx=-73, rely=-3)
+		self.first_page_btn.whenPressed = self.firstPage
+	
+		self.prev_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Prev]', relx=-63, rely=-3)
+		self.prev_page_btn.whenPressed = self.prevPage
+	
+		self.next_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Next]', relx=-53, rely=-3)
+		self.next_page_btn.whenPressed = self.nextPage
+		
+		self.last_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Last]', relx=-43, rely=-3)
+		self.last_page_btn.whenPressed = self.lastPage	
 
-	def update_list(self):
-		self.wMain.values = self.parentApp.sql.table_structure(self.value)
-		self.wMain.display()
+	def beforeEditing(self):
+		self.name = "Structure of Table %s" % self.value
 
-class EditStructure(npyscreen.ActionForm):
+		try:
+			#	sql stmt execution
+			self.colnames, self.results = self.parentApp.sql.table_structure(self.value)
+
+			col_names = ' ' * 3
+			for x in range(0, len(self.colnames)):
+				col_names += " | " + self.colnames[x]
+
+			self.col_display.value = col_names
+
+			# pagination
+			self.page = 0
+			self.total_pages = int(ceil(len(self.results) / float(self.MAX_PAGE_SIZE)))
+			self.displayResultsGrid(self.page)
+			
+		except Exception, e:
+			npyscreen.notify_confirm("e: %s" % e)
+	
+	def firstPage(self):
+		self.page = 0
+		self.displayResultsGrid(self.page)
+		self.SQL_display.update(clear=False)
+		self.display()
+
+	def lastPage(self):
+		self.page = self.total_pages - 1
+		self.displayResultsGrid(self.page)
+		self.SQL_display.update(clear=False)
+		self.display()
+
+	def nextPage(self):
+		if self.page < self.total_pages - 1:
+			self.page += 1
+		self.displayResultsGrid(self.page)
+		self.SQL_display.update(clear=False)
+		self.display()
+
+	def prevPage(self):
+		if self.page > 0:
+			self.page -= 1
+		self.displayResultsGrid(self.page)
+		self.SQL_display.update(clear=False)
+		self.display()
+
+	def displayResultsGrid(self, page):
+
+		# column titles
+		self.SQL_display.col_titles = self.colnames
+
+		# pagination
+		start = self.page * self.MAX_PAGE_SIZE
+		end = start + self.MAX_PAGE_SIZE
+
+		# grid results displayed from 2d array
+		columnNum = len(self.colnames)
+		self.SQL_display.values = []
+		for result in self.results[start:end]:
+			row = []
+			for i in xrange(0, columnNum):
+				row.append(result[i])
+			self.SQL_display.values.append(row)
+
+	# addField and editField call the same form. The only difference is that editField
+	# checks that a field was selected from the table (a field may be selected with
+	# addField, but it is ignored), and editField also passes the current values of 
+	# row to be edited.
+	
+	def addField(self):
+		self.parentApp.getForm('EDITFIELD').col_names = self.colnames
+		self.parentApp.getForm('EDITFIELD').col_values = []
+		self.parentApp.getForm('EDITFIELD').action = "add"
+		self.parentApp.getForm('EDITFIELD').table_name = self.value
+		self.parentApp.switchForm('EDITFIELD')
+			
+	def editField(self):
+		if self.SQL_display.value:
+			self.parentApp.getForm('EDITFIELD').col_names = self.colnames
+			self.parentApp.getForm('EDITFIELD').col_values = self.results[self.SQL_display.value[0]]
+			self.parentApp.getForm('EDITFIELD').action = "edit"
+			self.parentApp.getForm('EDITFIELD').table_name = self.value
+			self.parentApp.switchForm('EDITFIELD')
+		else:
+			npyscreen.notify_confirm("Please select a field to edit.")
+			
+	# deleteRow is similar to editRow in that a row must be selected. It 
+	# requires that the user confirms their desire to delete the row. It 
+	# does not require traversing to a separate form.
+	
+	def deleteField(self):
+		if self.SQL_display.value:
+			self.yesOrNo = npyscreen.notify_yes_no("You are about to delete a field. This action cannot be undone. Proceed?")
+			if self.yesOrNo:
+				# This passes the table name, column names, column values to the function that deletes the row.
+				# self.parentApp.sql.delete_field(self.value, self.colnames, self.results[self.SQL_display.value[0]]) 
+				# TODO
+				self.parentApp.setNextForm('STRUCTURE') # TODO: Make this refresh page automatically
+			else:
+				npyscreen.notify_confirm("Aborted. Your field was NOT deleted.")
+		else:
+			npyscreen.notify_confirm("Please select a field to delete.")
+
+################################################################
+# EDIT FIELD FORM
+#
+# Lets a user Add/Edit the information associated with a field
+# in the database. Retrieves information about the selected field
+# from col_values and uses it to prepopulate the form if the 
+# user is editing a field, otherwise defaults all the form values.
+################################################################
+			
+class EditFieldForm(npyscreen.ActionForm):
 	def create(self):
 
 		self.value = None
-		self.wgColumName = self.add(npyscreen.TitleText, name="Column Name: ")
+		self.wgColumnName = self.add(npyscreen.TitleText, name="Column Name: ")
 		self.wgNullable = self.add(npyscreen.TitleSelectOne, max_height=4, value = [1,], name="Nullable: ",
                values = ["Yes","No"], scroll_exit=True)
 			
-		self.wgDataType = self.add(npyscreen.TitleSelectOne, max_height=4, value = [1,], name="Data Type: ",
-            values = ["bigint",
+		self.wgDataType = self.add(npyscreen.TitleSelectOne, max_height=15, value = [0,], name="Data Type: ",
+            values = [
+      "bigint",
 			"bigserial",
 			"bit varying",
 			"boolean",
@@ -629,16 +757,26 @@ class EditStructure(npyscreen.ActionForm):
 		self.wgDefault = self.add(npyscreen.TitleText, name="Default: ")
 
 	def beforeEditing(self):
-		self.wgColumName.value = self.value[0]
+
+		# show field values if this is an edit form
+		if self.col_values:
+			self.wgColumnName.value = self.col_values[0]
+			self.wgDataType.value = [self.wgDataType.values.index(self.col_values[1]),]
+			self.wgCollationName.value = self.col_values[2]
+			self.wgDefault.value = self.col_values[4]
 		
-		self.wgCollationName.value = self.value[2]
-		
-		if self.value[3] == "YES":
-			self.wgNullable.value = [0,]
+			if self.col_values[3] == "YES":
+				self.wgNullable.value = [0,]
+			else:
+				self.wgNullable.value = [1,]
+				
+		# otherwise, reset this form
 		else:
+			self.wgColumnName.value = ""
+			self.wgDataType.value = [0,]
+			self.wgCollationName.value = ""
 			self.wgNullable.value = [1,]
-			
-		self.wgDefault.value = self.value[4]
+			self.wgDefault.value = ""
 		
 	def on_ok(self):
 
@@ -646,88 +784,7 @@ class EditStructure(npyscreen.ActionForm):
 		self.parentApp.switchForm('STRUCTURE')
 
 	def on_cancel(self):
-		self.parentApp.switchForm('STRUCTURE')
-
-
-
-# class StructureForm(npyscreen.SplitForm, MainForm):
-
-# 	OK_BUTTON_TEXT = "Return to Main"
-# 	MAX_PAGE_SIZE = 15
-
-# 	def create(self):
-
-# 		# globals
-# 		self.page = 0
-# 		self.colnames = []
-# 		self.results = []
-
-# 		# menu items
-# 		self.menu = self.new_menu(name="Main Menu", shortcut='m')
-# 		self.menu.addItem("Structure", self.structure, "s")
-# 		self.menu.addItem("SQL Runner", self.sql_run, "q")
-# 		self.menu.addItem("Browse", self.browse, "b")
-# 		self.menu.addItem("Close Menu", self.close_menu, "^c")
-# 		self.menu.addItem("Quit Application", self.exit_form, "^X")
-	
-# 		# widgets
-# 		self.SQL_display = self.add(npyscreen.GridColTitles, max_height=17, editable=False, rely=(2))
-	
-# 		self.next_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Next]', relx=-13, rely=-5)
-# 		self.next_page_btn.whenPressed = self.nextPage
-
-# 		self.prev_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Prev]', relx=-23, rely=-5)
-# 		self.prev_page_btn.whenPressed = self.prevPage
-		
-# 	def beforeEditing(self):
-# 		self.name = "Structure of Table %s" % self.value
-# 		try:
-# 			#	sql stmt execution
-# 			self.colnames, self.results = self.parentApp.sql.table_structure(self.value)
-
-# 			# pagination
-# 			self.page = 0
-# 			self.total_pages = int(ceil(len(self.results) / float(self.MAX_PAGE_SIZE)))
-# 			self.displayResultsGrid(self.page)
-			
-# 		except Exception, e:
-# 			npyscreen.notify_confirm("e: %s" % e)
-			
-# 	def afterEditing(self):
-# 		self.parentApp.setNextForm('MAINMENU')
-
-# 	def nextPage(self):
-# 		if self.page < self.total_pages - 1:
-# 			self.page += 1
-# 		self.displayResultsGrid(self.page)
-# 		self.SQL_display.update(clear=False)
-# 		self.display()
-
-# 	def prevPage(self):
-# 		if self.page > 0:
-# 			self.page -= 1
-# 		self.displayResultsGrid(self.page)
-# 		self.SQL_display.update(clear=False)
-# 		self.display()
-
-# 	def displayResultsGrid(self, page):
-
-# 		# pagination
-# 		start = self.page * self.MAX_PAGE_SIZE
-# 		end = start + self.MAX_PAGE_SIZE
-
-# 		# column titles
-# 		self.SQL_display.col_titles = ['E', 'X'] + self.colnames
-
-# 		# grid results displayed from 2d array
-# 		columnNum = len(self.colnames)
-# 		self.SQL_display.values = []
-# 		for result in self.results[start:end]:
-# 			row = []
-# 			row.append()
-# 			for i in xrange(0, columnNum):
-# 				row.append(result[i])
-# 			self.SQL_display.values.append(row)
+		self.parentApp.switchForm('STRUCTURE')	
 		
 ################################################################
 # APP SETUP
@@ -747,8 +804,9 @@ class App(npyscreen.NPSAppManaged):
 		self.addForm('CHOOSE', ChooseTableForm, name="Choose a table")
 		self.addForm('BROWSE', BrowseForm, name="Browse")
 		self.addForm('STRUCTURE', StructureForm, name="Structure")
-		self.addForm('EDITSTRUCTUREFM', EditStructure, name="EditStructure")
+		#self.addForm('EDITSTRUCTUREFM', EditStructure, name="EditStructure")
 		self.addForm('EDITROW', EditRowForm, name="Edit Row")
+		self.addForm('EDITFIELD', EditFieldForm, name="Edit Field")
 		#self.addForm('EDITBROWSEFM', EditBrowse, name="EditBrowse")
 
 if __name__ == "__main__":

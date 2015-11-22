@@ -41,11 +41,11 @@ class PostgreSQL():
 				information_schema.columns WHERE table_name = '%s';" % table_name)
 			colnames = [desc[0] for desc in c.description]
 			results = c.fetchall()
-			rows = []
-			rows.append(colnames)
-			for result in results:
-				rows.append(list(result))
-			return rows
+			# rows = []
+			# rows.append(colnames)
+			# for result in results:
+			# 	rows.append(list(result))
+			return colnames, results
 		except Exception, e:
 			npyscreen.notify_confirm("e: %s" % e)
 			c.execute("ROLLBACK;")			
