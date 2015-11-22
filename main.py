@@ -77,15 +77,37 @@ class MainForm(npyscreen.FormWithMenus):
 		self.menu.addItem("Close Menu", self.close_menu, "^c")
 		self.menu.addItem("Quit Application", self.exit_form, "^X")
 	
-		#Description of our program for the user
-		self.add(npyscreen.MultiLineEdit, value="Welcome!\n\n\
+		#Description of our program for the user, with ASCII art for visual flair
+		self.add(npyscreen.MultiLineEdit, editable=False, value="\
+                            ________________  Welcome!\n\
+                           /               /| \n\
+                          /_______________/ | This is an NCurses and \n\
+    ________________      |  __________  |  | Npyscreen-based database UI\n\
+   /               /|     | |          | |  | \n\
+  /               / |     | | NCurses  | |  | Press ctrl-x to open the \n\
+ /_______________/  |/\   | |          | |  | navigation window.\n\
+(_______________(   |  \  | |__________| | /    \n\
+(_______________(   |   \ |______________|/ ___/\ \n\
+(_______________(  /     |____>______<_____/     \ \n\
+(_______________( /     / = ==== ==== ==== /|    _|_ \n\
+(   postgreSQL  (/     / ========= === ===/ /   //// \n\
+(_______________      / ========= === ===/ /   /__/  \n\
+                     <__________________<_/     \n\n\
+			You may Browse tables in your database, viewing, selecting, editing, and \n\
+			deleting individual rows. You may also view and edit the structure of \n\
+			tables, and perform more complex queries with manual SQL commands.\n\n\
+			This is project for CS 419 - Group 9: \n\
+					Josh Seifert, Emma Murray, Bailey Roe\n")
+
+		
+	"""	self.add(npyscreen.MultiLineEdit, value="Welcome!\n\n\
 			This is an NCurses and Npyscreen-based database UI\n\n\
 			You may Browse tables in your database, viewing, selecting, editing, and \n\
 			deleting individual rows. You may also view and edit the structure of \n\
 			tables, and perform more complex queries with manual SQL commands.\n\n\
 			This is project for CS 419 - Group 9: \n\
 					Josh Seifert, Emma Murray, Bailey Roe\n\n\
-			Press ctrl-x to open the navigation window.", editable=False)
+			Press ctrl-x to open the navigation window.", editable=False) """
 		
 	# Allows the user to quit the program
 	def on_ok(self):
@@ -161,18 +183,18 @@ class SQLForm(npyscreen.SplitForm, MainForm):
 		self.results_per_page_title_text = self.add(npyscreen.TitleText, begin_entry_at=31, max_width=40, rely=7, name="# Results Per Page (Max 10):", value="10")
 		self.SQL_display = self.add(npyscreen.GridColTitles, max_height=12, editable=False, rely=9)
 	
-		self.first_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[First]', relx=-43, rely=-3)
+		self.first_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[First]', relx=-43, rely=-3, editable=False)
 		self.first_page_btn.whenPressed = self.firstPage
 	
-		self.prev_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Prev]', relx=-33, rely=-3)
+		self.prev_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Prev]', relx=-33, rely=-3, editable=False)
 		self.prev_page_btn.whenPressed = self.prevPage
 	
-		self.next_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Next]', relx=-23, rely=-3)
+		self.next_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Next]', relx=-23, rely=-3, editable=False)
 		self.next_page_btn.whenPressed = self.nextPage
 		
-		self.last_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Last]', relx=-13, rely=-3)
+		self.last_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Last]', relx=-13, rely=-3, editable=False)
 		self.last_page_btn.whenPressed = self.lastPage
-
+		
 	def afterEditing(self):
 	
 		# get # of rows per page. User is instructed to enter a number between 1-10.
@@ -191,12 +213,20 @@ class SQLForm(npyscreen.SplitForm, MainForm):
 			
 		try:		
 			# sql stmt execution
-			self.colnames, self.results = self.parentApp.sql.run_sql(self.SQL_command.value)
+			if self.SQL_command.value != '':
+				self.colnames, self.results = self.parentApp.sql.run_sql(self.SQL_command.value)
 			
-			# pagination
-			self.page = 0
-			self.total_pages = int(ceil(len(self.results) / float(self.results_per_page)))
-			self.displayResultsGrid(self.page)
+				# pagination
+				self.page = 0
+				self.total_pages = int(ceil(len(self.results) / float(self.results_per_page)))
+				self.displayResultsGrid(self.page)
+				
+				# User may select pagination buttons only once query is run
+				self.first_page_btn.editable = True
+				self.prev_page_btn.editable = True
+				self.next_page_btn.editable = True
+				self.last_page_btn.editable = True
+			
 			
 		except Exception, e:			
 			npyscreen.notify_confirm("e: %s" % e) #this is where the "nonetype object not iterable" error is being thrown. 
@@ -390,7 +420,7 @@ class BrowseForm(npyscreen.ActionFormMinimal, MainForm):
 			if self.yesOrNo:
 				# This passes the table name, column names, column values to the function that deletes the row.
 				self.parentApp.sql.delete_row(self.value, self.colnames, self.results[self.SQL_display.value[0]]) 
-				self.parentApp.setNextForm('BROWSE') # TODO: Make this refresh page automatically
+				self.parentApp.switchForm('BROWSE')
 			else:
 				npyscreen.notify_confirm("Aborted. Your row was NOT deleted.")
 		else:
@@ -721,7 +751,7 @@ class EditFieldForm(npyscreen.ActionForm):
 		self.wgNullable = self.add(npyscreen.TitleSelectOne, max_height=4, value = [1,], name="Nullable: ",
                values = ["Yes","No"], scroll_exit=True)
 			
-		self.wgDataType = self.add(npyscreen.TitleSelectOne, max_height=15, value = [0,], name="Data Type: ",
+		self.wgDataType = self.add(npyscreen.TitleSelectOne, max_height=10, value = [0,], name="Data Type: ",
             values = [
       "bigint",
 			"bigserial",
@@ -755,8 +785,12 @@ class EditFieldForm(npyscreen.ActionForm):
 			"txid_snapshot",
 			"uuid",
 			"xml"], scroll_exit=True)
+<<<<<<< HEAD:demo.py
 		#the next line of code was throwing an error I couldn't fix. program seems to be working with it commented out
 		#self.wgCollationName = self.add(npyscreen.TitleText, name="Collation Name: ")
+=======
+		self.wgCollationName = self.add(npyscreen.TitleText, name="Collation Name :")
+>>>>>>> origin/master:main.py
 		self.wgDefault = self.add(npyscreen.TitleText, name="Default: ")
 
 	def beforeEditing(self):
