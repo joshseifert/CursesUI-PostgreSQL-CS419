@@ -65,6 +65,8 @@ class ConnectForm(npyscreen.ActionForm, npyscreen.SplitForm):
 
 class MainForm(npyscreen.FormWithMenus):
 
+	OK_BUTTON_TEXT = ""
+
 	def create(self):
 		# The pop-up menu that is accessible from (almost) every other form.
 		# This gets inherited by other forms so that the user can easily navigate between screens
@@ -72,7 +74,7 @@ class MainForm(npyscreen.FormWithMenus):
 		self.menu.addItem("Structure", self.structure, "s")
 		self.menu.addItem("SQL Runner", self.sql_run, "q")
 		self.menu.addItem("Browse", self.browse, "b")
-		self.menu.addItem("Close Menu", self.close_menu, "c")
+		self.menu.addItem("Close Menu", self.close_menu, "^c")
 		self.menu.addItem("Quit Application", self.exit_form, "^X")
 	
 		#Description of our program for the user
