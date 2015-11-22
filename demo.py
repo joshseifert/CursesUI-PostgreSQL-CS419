@@ -753,7 +753,7 @@ class EditFieldForm(npyscreen.ActionForm):
 			"txid_snapshot",
 			"uuid",
 			"xml"], scroll_exit=True)
-		self.wgCollationName = self.add(npyscreen.TitleText, name="Collation:")
+		self.wgCollationName = self.add(npyscreen.TitleText, name="Collation Name :")
 		self.wgDefault = self.add(npyscreen.TitleText, name="Default: ")
 
 	def beforeEditing(self):
