@@ -159,18 +159,23 @@ class SQLForm(npyscreen.SplitForm, MainForm):
 		self.results_per_page_title_text = self.add(npyscreen.TitleText, begin_entry_at=31, max_width=40, rely=7, name="# Results Per Page (Max 10):", value="10")
 		self.SQL_display = self.add(npyscreen.GridColTitles, max_height=12, editable=False, rely=9)
 	
-		self.first_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[First]', relx=-43, rely=-3)
+		self.first_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[First]', relx=-43, rely=-3, editable=False)
 		self.first_page_btn.whenPressed = self.firstPage
 	
-		self.prev_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Prev]', relx=-33, rely=-3)
+		self.prev_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Prev]', relx=-33, rely=-3, editable=False)
 		self.prev_page_btn.whenPressed = self.prevPage
 	
-		self.next_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Next]', relx=-23, rely=-3)
+		self.next_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Next]', relx=-23, rely=-3, editable=False)
 		self.next_page_btn.whenPressed = self.nextPage
 		
-		self.last_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Last]', relx=-13, rely=-3)
+		self.last_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Last]', relx=-13, rely=-3, editable=False)
 		self.last_page_btn.whenPressed = self.lastPage
 
+#	def beforeEditing(self):
+		# prevent error if user selects pagination buttons before running query
+#		self.total_pages = 0
+#		self.results_per_page = 10
+		
 	def afterEditing(self):
 	
 		# get # of rows per page. User is instructed to enter a number between 1-10.
@@ -195,6 +200,13 @@ class SQLForm(npyscreen.SplitForm, MainForm):
 			self.page = 0
 			self.total_pages = int(ceil(len(self.results) / float(self.results_per_page)))
 			self.displayResultsGrid(self.page)
+			
+			# User may select pagination buttons only once query is run
+			self.first_page_btn.editable = True
+			self.prev_page_btn.editable = True
+			self.next_page_btn.editable = True
+			self.last_page_btn.editable = True
+			
 			
 		except Exception, e:
 			npyscreen.notify_confirm("e: %s" % e)
