@@ -102,11 +102,10 @@ class PostgreSQL():
 		query_string += ' ' + self.name + ' ' + self.datatype
 
 		if self.default:
-			query_string += ' ' + self.default
+			query_string += ' DEFAULT ' + self.default
 
-		# this may not be applicable for adding a new column...
 		if self.collation:
-			query_string += ' ' + self.collation
+			query_string += ' COLLATE "' + self.collation + '"'
 
 		if self.nullable == 'NO':
 			query_string += ' NOT NULL'
