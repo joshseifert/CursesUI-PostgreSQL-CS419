@@ -96,18 +96,8 @@ class MainForm(npyscreen.FormWithMenus):
 			You may Browse tables in your database, viewing, selecting, editing, and \n\
 			deleting individual rows. You may also view and edit the structure of \n\
 			tables, and perform more complex queries with manual SQL commands.\n\n\
-			This is project for CS 419 - Group 9: \n\
+			This is a project for CS 419 - Group 9: \n\
 					Josh Seifert, Emma Murray, Bailey Roe\n")
-
-		
-	"""	self.add(npyscreen.MultiLineEdit, value="Welcome!\n\n\
-			This is an NCurses and Npyscreen-based database UI\n\n\
-			You may Browse tables in your database, viewing, selecting, editing, and \n\
-			deleting individual rows. You may also view and edit the structure of \n\
-			tables, and perform more complex queries with manual SQL commands.\n\n\
-			This is project for CS 419 - Group 9: \n\
-					Josh Seifert, Emma Murray, Bailey Roe\n\n\
-			Press ctrl-x to open the navigation window.", editable=False) """
 		
 	# Allows the user to quit the program
 	def on_ok(self):
@@ -214,7 +204,11 @@ class SQLForm(npyscreen.SplitForm, MainForm):
 		try:		
 			# sql stmt execution
 			if self.SQL_command.value != '':
-				self.colnames, self.results = self.parentApp.sql.run_sql(self.SQL_command.value)
+				# Only select returns database results, second argument is a flag to return values
+				if self.SQL_command.value[:6].upper() == 'SELECT':
+					self.colnames, self.results = self.parentApp.sql.run_sql(self.SQL_command.value, True)
+				else:
+					self.parentApp.sql.run_sql(self.SQL_command.value, False)
 			
 				# pagination
 				self.page = 0
@@ -227,7 +221,8 @@ class SQLForm(npyscreen.SplitForm, MainForm):
 				self.next_page_btn.editable = True
 				self.last_page_btn.editable = True
 			
-			
+		#except StopIteration:
+		#	pass
 		except Exception, e:			
 			npyscreen.notify_confirm("e: %s" % e) #this is where the "nonetype object not iterable" error is being thrown. 
 	
@@ -725,9 +720,9 @@ class StructureForm(npyscreen.ActionFormMinimal, MainForm):
 		if self.SQL_display.value:
 			self.yesOrNo = npyscreen.notify_yes_no("You are about to delete a field. This action cannot be undone. Proceed?")
 			if self.yesOrNo:
-				# This passes the table name, column names, column values to the function that deletes the row.
-				# self.parentApp.sql.delete_field(self.value, self.colnames, self.results[self.SQL_display.value[0]]) 
-				# TODO
+				# This passes the table name and column name to the column delete function
+				column_values = self.results[self.SQL_display.value[0]]
+				self.parentApp.sql.delete_column(self.value, column_values) 
 				self.parentApp.setNextForm('STRUCTURE') # TODO: Make this refresh page automatically
 			else:
 				npyscreen.notify_confirm("Aborted. Your field was NOT deleted.")
@@ -785,12 +780,8 @@ class EditFieldForm(npyscreen.ActionForm):
 			"txid_snapshot",
 			"uuid",
 			"xml"], scroll_exit=True)
-<<<<<<< HEAD:demo.py
-		#the next line of code was throwing an error I couldn't fix. program seems to be working with it commented out
-		#self.wgCollationName = self.add(npyscreen.TitleText, name="Collation Name: ")
-=======
+
 		self.wgCollationName = self.add(npyscreen.TitleText, name="Collation Name :")
->>>>>>> origin/master:main.py
 		self.wgDefault = self.add(npyscreen.TitleText, name="Default: ")
 
 	def beforeEditing(self):
@@ -817,7 +808,18 @@ class EditFieldForm(npyscreen.ActionForm):
 		
 	def on_ok(self):
 
-		''' TODO: add code here to actually commit changes to db '''
+		# get new values from the form - we need to be able to compare with
+		# old values to determine what has changed
+		self.new_values = []
+		self.new_values.append(self.wgColumnName.value)
+		self.new_values.append(self.wgDataType.values[self.wgDataType.value[0]])
+		self.new_values.append(self.wgCollationName.value)
+		self.new_values.append(self.wgNullable.value)
+		self.new_values.append(self.wgDefault.value)
+
+		if self.action == 'add':
+			self.parentApp.sql.add_column(self.table_name, self.new_values)
+
 		self.parentApp.switchForm('STRUCTURE')
 
 	def on_cancel(self):
