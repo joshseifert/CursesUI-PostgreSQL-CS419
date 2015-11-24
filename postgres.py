@@ -115,6 +115,43 @@ class PostgreSQL():
 			c.close()
 
 		# constructs the alter table string based on requested values
+		
+		data = []
+		query_altertable_string = 'ALTER TABLE ' + table_name + ' ADD COLUMN %s %s'
+		data.append(column_values['colname'])
+		data.append(column_values['datatype'])
+		
+		if column_values['collation']:
+			query_altertable_string += ' COLLATE %s'
+			data.append(column_values['collation'])
+			
+		if column_values['nullable'] == 'YES':
+			query_altertable_string += ' %s'
+			data.append('NULL')
+			
+		if column_values['default']:
+			# todo - need to add quotes around default value if this is a string type
+			query_altertable_string += ' DEFAULT %s'
+			data.append(column_values['default'])
+			
+		if column_values['unique'] == 'YES':
+			query_altertable_string += ' %s'
+			data.append('UNIQUE')
+			
+		if primarykey and column_values['pk'] == 'YES':
+				npyscreen.notify_confirm('Add column aborted. You already have a primary \
+				key set on the %s field.' % primarykey[0])
+				return
+		elif column_values['pk'] == 'YES':
+			query_altertable_string += ' %s'
+			data.append('PRIMARY KEY')
+			
+		query_altertable_string += ';'
+		
+		npyscreen.notify_confirm(query_altertable_string) # debug
+		npyscreen.notify_confirm(data) # debug
+			
+		"""
 		query_altertable_string = 'ALTER TABLE ' + table_name + ' ADD COLUMN'
 		query_altertable_string += ' ' + column_values['colname'] + ' ' + column_values['datatype']
 
@@ -139,18 +176,20 @@ class PostgreSQL():
 			query_altertable_string += ' PRIMARY KEY'
 
 		query_altertable_string += ';'
-
+		
 		npyscreen.notify_confirm(query_altertable_string) # debug
-
+		"""
 		try:
 			c = self.conn.cursor()
-			c.execute(query_altertable_string)
+			c.execute(query_altertable_string, data)
 			npyscreen.notify_confirm('Field added.')
 		except Exception, e:
 			npyscreen.notify_confirm('e: %s' % e)
 			c.execute('ROLLBACK;')
 		finally:
 			c.close()
+			
+		
 
 
 ################################################################
@@ -175,49 +214,67 @@ class PostgreSQL():
 			c.close()
 			
 	def edit_row(self, table_name, columns, new_values, old_values):
-
+	
 		#This part is just building the query string
 		query_string = "UPDATE %s SET " % table_name
 		for x in range(0, len(columns)):
-			query_string += (columns[x] + " = '" + str(new_values[x]) + "', ")
+			query_string += (columns[x] + " = %s, ")
 		query_string = query_string[:-2] + ' WHERE ('
 		for x in range(0, len(columns)):
-			query_string += (columns[x] + " = '" + str(old_values[x]) + "' AND ")
+			query_string += (columns[x] + " = %s AND ")
 		query_string = query_string[:-5] + ');'
-
+		
+		# pass parameters as separate list. psycopg2 automatically converts Python objects to 
+		# SQL literals, prevents injection attacks
+		data = []
+		for x in range(0, len(columns)):
+			data.append(str(new_values[x]))
+		for x in range(0, len(columns)):
+			data.append(str(old_values[x]))
+		
 		npyscreen.notify_confirm(query_string) # debug
-
+		npyscreen.notify_confirm(data) # debug
+		
 		try:
 			c = self.conn.cursor()
-			c.execute(query_string)
+			c.execute(query_string, data)
 			npyscreen.notify_confirm("Row updated.")
 		except Exception, e:
 			npyscreen.notify_confirm("e: %s" % e)
 			c.execute("ROLLBACK;")
 		finally:
 			c.close() 
-
 			
 	def add_row(self, table_name, columns, new_values):
+	
 		query_string = "INSERT INTO %s (" % table_name
 		for x in range(0, len(columns)):
 			query_string += (str(columns[x])) + ","
-		query_string = query_string[:-1] + ") VALUES ('"
+		query_string = query_string[:-1] + ") VALUES ("
 		for x in range(0, len(columns)):
-			query_string += (str(new_values[x])) + "','"
-		query_string = query_string[:-2] + ");"
+			query_string += "%s" + ","
+		query_string = query_string[:-1] + ");"
 		
+		# pass parameters as separate list. psycopg2 automatically converts Python objects to 
+		# SQL literals, prevents injection attacks
+		data = []
+		for x in range(0, len(columns)):
+			data.append(str(new_values[x]))
+						
 		npyscreen.notify_confirm(query_string) # debug
+		npyscreen.notify_confirm(data) # debug
 		
 		try:
 			c = self.conn.cursor()
-			c.execute(query_string)
+			c.execute(query_string, data)
 			npyscreen.notify_confirm("Row added.")
 		except Exception, e:
 			npyscreen.notify_confirm("e: %s" % e)
 			c.execute("ROLLBACK;")
 		finally:
 			c.close()
+		
+		
 
 ################################################################
 # UTILITY FUNCTIONS

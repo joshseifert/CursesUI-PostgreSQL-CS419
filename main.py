@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import curses
 import npyscreen
 from postgres import *
 from math import ceil
@@ -77,7 +78,8 @@ class MainForm(npyscreen.FormWithMenus):
 		self.menu.addItem("Close Menu", self.close_menu, "^c")
 		self.menu.addItem("Quit Application", self.exit_form, "^X")
 	
-		#Description of our program for the user, with ASCII art for visual flair
+		# Description of our program for the user. 
+		# ASCII art slightly modified from original at http://www.asciiworld.com/-Computers-.html
 		self.add(npyscreen.MultiLineEdit, editable=False, value="\
                             ________________  Welcome!\n\
                            /               /| \n\
@@ -723,7 +725,7 @@ class StructureForm(npyscreen.ActionFormMinimal, MainForm):
 				# This passes the table name and column name to the column delete function
 				column_values = self.results[self.SQL_display.value[0]]
 				self.parentApp.sql.delete_column(self.value, column_values) 
-				self.parentApp.setNextForm('STRUCTURE') # TODO: Make this refresh page automatically
+				self.parentApp.switchForm('STRUCTURE')
 			else:
 				npyscreen.notify_confirm("Aborted. Your field was NOT deleted.")
 		else:
@@ -817,6 +819,9 @@ class EditFieldForm(npyscreen.ActionForm):
 		# get new values from the form - we need to be able to compare with
 		# old values to determine what has changed
 		self.new_values = {}
+		if self.wgColumnName.value == '':
+			npyscreen.notify_confirm("Column name is a required field.")
+			return
 		self.new_values['colname'] = self.wgColumnName.value
 		self.new_values['datatype'] = self.wgDataType.values[self.wgDataType.value[0]]
 		self.new_values['collation'] = self.wgCollationName.value
