@@ -743,11 +743,9 @@ class EditFieldForm(npyscreen.ActionForm):
 
 		self.value = None
 		self.wgColumnName = self.add(npyscreen.TitleText, name="Column Name: ")
-		self.wgNullable = self.add(npyscreen.TitleSelectOne, max_height=4, value = [1,], name="Nullable: ",
-               values = ["Yes","No"], scroll_exit=True)
 			
-		self.wgDataType = self.add(npyscreen.TitleSelectOne, max_height=10, value = [0,], name="Data Type: ",
-            values = [
+		self.wgDataType = self.add(npyscreen.TitleSelectOne, max_height=5, value = [0,], name="Data Type: ",
+          values = [
       "bigint",
 			"bigserial",
 			"bit varying",
@@ -782,7 +780,13 @@ class EditFieldForm(npyscreen.ActionForm):
 			"xml"], scroll_exit=True)
 
 		self.wgCollationName = self.add(npyscreen.TitleText, name="Collation Name :")
+		self.wgNullable = self.add(npyscreen.TitleSelectOne, max_height=4, value = [1,], name="Nullable: ",
+          values = ["Yes","No"], scroll_exit=True)
 		self.wgDefault = self.add(npyscreen.TitleText, name="Default: ")
+		self.wgUnique = self.add(npyscreen.TitleSelectOne, max_height=4, value = [1,], name="Unique: ",
+        	values = ["Yes","No"], scroll_exit=True)
+		self.wgPrimaryKey = self.add(npyscreen.TitleSelectOne, max_height=4, value = [1,], name="Primary Key: ",
+					values = ["Yes","No"], scroll_exit=True)
 
 	def beforeEditing(self):
 
@@ -805,17 +809,21 @@ class EditFieldForm(npyscreen.ActionForm):
 			self.wgCollationName.value = ""
 			self.wgNullable.value = [1,]
 			self.wgDefault.value = ""
-		
+			self.wgUnique.value = [1,]
+			self.wgPrimaryKey.value = [1,]
+
 	def on_ok(self):
 
 		# get new values from the form - we need to be able to compare with
 		# old values to determine what has changed
-		self.new_values = []
-		self.new_values.append(self.wgColumnName.value)
-		self.new_values.append(self.wgDataType.values[self.wgDataType.value[0]])
-		self.new_values.append(self.wgCollationName.value)
-		self.new_values.append(self.wgNullable.value)
-		self.new_values.append(self.wgDefault.value)
+		self.new_values = {}
+		self.new_values['colname'] = self.wgColumnName.value
+		self.new_values['datatype'] = self.wgDataType.values[self.wgDataType.value[0]]
+		self.new_values['collation'] = self.wgCollationName.value
+		self.new_values['nullable'] = self.wgNullable.value
+		self.new_values['default'] = self.wgDefault.value
+		self.new_values['unique'] = self.wgUnique.value
+		self.new_values['pk'] = self.wgPrimaryKey.value
 
 		if self.action == 'add':
 			self.parentApp.sql.add_column(self.table_name, self.new_values)

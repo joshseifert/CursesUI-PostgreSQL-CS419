@@ -91,32 +91,60 @@ class PostgreSQL():
 	#def edit_column(self, table_name, old_column_values, new_column_values):
 
 	def add_column(self, table_name, column_values):
-		# unpack column values for code clarity
-		self.name = column_values[0]
-		self.datatype = column_values[1]
-		self.collation = column_values[2]
-		self.nullable = column_values[3]
-		self.default = column_values[4]
 
-		query_string = 'ALTER TABLE ' + table_name + ' ADD COLUMN'
-		query_string += ' ' + self.name + ' ' + self.datatype
+		# determines if there is already a primary key on the table
+		query_getpk_string = 'SELECT kcu.column_name \
+				FROM information_schema.table_constraints tc \
+				JOIN information_schema.key_column_usage kcu \
+					ON tc.constraint_catalog = kcu.constraint_catalog \
+					AND tc.constraint_schema = kcu.constraint_schema \
+					AND tc.constraint_name = kcu.constraint_name \
+				WHERE tc.constraint_type = \'PRIMARY KEY\' \
+					AND tc.table_name = \'%s\';' % table_name
 
-		if self.default:
-			query_string += ' DEFAULT ' + self.default
+		primarykey = ''
+		try:
+			c = self.conn.cursor()
+			c.execute(query_getpk_string)
+			primarykey = c.fetchall()
+		except Exception, e:
+			npyscreen.notify_confirm('e: %s' % e)
+			c.execute('ROLLBACK;')
+			return
+		finally:
+			c.close()
 
-		if self.collation:
-			query_string += ' COLLATE "' + self.collation + '"'
+		# constructs the alter table string based on requested values
+		query_altertable_string = 'ALTER TABLE ' + table_name + ' ADD COLUMN'
+		query_altertable_string += ' ' + column_values['colname'] + ' ' + column_values['datatype']
 
-		if self.nullable == 'NO':
-			query_string += ' NOT NULL'
+		if column_values['collation']:
+			query_altertable_string += ' COLLATE "' + column_values['collation'] + '"'
 
-		query_string += ';'
+		if column_values['nullable'] == 'YES':
+			query_altertable_string += ' NULL'
 
-		npyscreen.notify_confirm(query_string) # debug
+		if column_values['default']:
+			# todo - need to add quotes around default value if this is a string type
+			query_altertable_string += ' DEFAULT ' + column_values['default']
+
+		if column_values['unique'] == 'YES':
+			query_altertable_string += ' UNIQUE'
+
+		if primarykey and column_values['pk'] == 'YES':
+				npyscreen.notify_confirm('Add column aborted. You already have a primary \
+				key set on the %s field.' % primarykey[0])
+				return
+		elif column_values['pk'] == 'YES':
+			query_altertable_string += ' PRIMARY KEY'
+
+		query_altertable_string += ';'
+
+		npyscreen.notify_confirm(query_altertable_string) # debug
 
 		try:
 			c = self.conn.cursor()
-			c.execute(query_string)
+			c.execute(query_altertable_string)
 			npyscreen.notify_confirm('Field added.')
 		except Exception, e:
 			npyscreen.notify_confirm('e: %s' % e)
