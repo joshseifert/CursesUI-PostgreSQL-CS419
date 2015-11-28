@@ -43,16 +43,16 @@ class ConnectForm(npyscreen.ActionForm, npyscreen.SplitForm):
 			npyscreen.notify_confirm("Successfully connected to the database!","Connected", editw=1)
 			self.parentApp.setNextForm('MAINMENU')
 		except:
-			npyscreen.notify_confirm("Error: Could not connect to database. If you are unsure, do not alter the Host or Port values.")
+			npyscreen.notify_confirm("Error: Could not connect to database. If you are unsure, do not alter the Host or Port values.", editw=1)
 			self.parentApp.setNextForm('MAIN')
 
 	def on_ok(self):
-		exiting = npyscreen.notify_yes_no("Are you sure you want to quit?","Cancel?")
+		exiting = npyscreen.notify_yes_no("Are you sure you want to quit?","Cancel?", editw=1)
 		if exiting:
-			npyscreen.notify_confirm("Goodbye!")
+			npyscreen.notify_confirm("Goodbye!", editw=1)
 			self.parentApp.setNextForm(None)
 		else:
-			npyscreen.notify_confirm("Please enter login information.", "Back to it!")
+			npyscreen.notify_confirm("Please enter login information.", "Back to it!", editw=1)
 
 ################################################################
 # MAIN TITLE SCREEN
@@ -103,9 +103,9 @@ class MainForm(npyscreen.FormWithMenus):
 		
 	# Allows the user to quit the program
 	def on_ok(self):
-		exiting = npyscreen.notify_yes_no("Are you sure you want to quit?","Quit?")
+		exiting = npyscreen.notify_yes_no("Are you sure you want to quit?","Quit?", editw=1)
 		if exiting:
-			npyscreen.notify_confirm("Goodbye!")
+			npyscreen.notify_confirm("Goodbye!", editw=1)
 			self.parentApp.switchForm(None)
 		else:
 			pass
@@ -129,9 +129,9 @@ class MainForm(npyscreen.FormWithMenus):
 		self.parentApp.switchForm(form)
 	
 	def exit_form(self):
-		exiting = npyscreen.notify_yes_no("Are you sure you want to quit?","Quit?")
+		exiting = npyscreen.notify_yes_no("Are you sure you want to quit?","Quit?", editw=1)
 		if exiting:
-			npyscreen.notify_confirm("Goodbye!")
+			npyscreen.notify_confirm("Goodbye!", editw=1)
 			exit()
 		else:
 			pass
@@ -200,7 +200,7 @@ class SQLForm(npyscreen.SplitForm, MainForm):
 			elif self.results_per_page > 10:
 				self.results_per_page = 10
 		except:
-			npyscreen.notify_confirm("Error: You may only display 1-10 results per page.")
+			npyscreen.notify_confirm("Error: You may only display 1-10 results per page.", editw=1)
 			self.parentApp.switchForm('SQL_RUN')
 			
 		try:		
@@ -226,7 +226,7 @@ class SQLForm(npyscreen.SplitForm, MainForm):
 		#except StopIteration:
 		#	pass
 		except Exception, e:			
-			npyscreen.notify_confirm("e: %s" % e) #this is where the "nonetype object not iterable" error is being thrown. 
+			npyscreen.notify_confirm("e: %s" % e, editw=1) 
 	
 	# These are the functions of the pagination buttons
 	def firstPage(self):
@@ -405,7 +405,7 @@ class BrowseForm(npyscreen.ActionFormMinimal, MainForm):
 			self.parentApp.getForm('EDITROW').table_name = self.value
 			self.parentApp.switchForm('EDITROW')
 		else:
-			npyscreen.notify_confirm("Please select a row to edit.")
+			npyscreen.notify_confirm("Please select a row to edit.", editw=1)
 			
 	# deleteRow is similar to editRow in that a row must be selected. It 
 	# requires that the user confirms their desire to delete the row. It 
@@ -413,15 +413,15 @@ class BrowseForm(npyscreen.ActionFormMinimal, MainForm):
 	
 	def deleteRow(self):
 		if self.SQL_display.value:
-			self.yesOrNo = npyscreen.notify_yes_no("You are about to delete a row. This action cannot be undone. Proceed?")
+			self.yesOrNo = npyscreen.notify_yes_no("You are about to delete a row. This action cannot be undone. Proceed?", editw=1)
 			if self.yesOrNo:
 				# This passes the table name, column names, column values to the function that deletes the row.
 				self.parentApp.sql.delete_row(self.value, self.colnames, self.results[self.SQL_display.value[0]]) 
 				self.parentApp.switchForm('BROWSE')
 			else:
-				npyscreen.notify_confirm("Aborted. Your row was NOT deleted.")
+				npyscreen.notify_confirm("Aborted. Your row was NOT deleted.", editw=1)
 		else:
-			npyscreen.notify_confirm("Please select a row to delete.")
+			npyscreen.notify_confirm("Please select a row to delete.", editw=1)
 		
 	def beforeEditing(self):
 		try:
@@ -431,7 +431,7 @@ class BrowseForm(npyscreen.ActionFormMinimal, MainForm):
 			elif self.parentApp.rows_per_page > 15:
 				self.parentApp.rows_per_page = 15
 		except Exception as e:
-			npyscreen.notify_confirm("Error: You may only display 1-15 results per page." + str(e))
+			npyscreen.notify_confirm("Error: You may only display 1-15 results per page." + str(e), editw=1)
 			self.parentApp.switchForm('CHOOSE')
 		
 		self.name = "Browsing table %s" % self.value
@@ -451,7 +451,7 @@ class BrowseForm(npyscreen.ActionFormMinimal, MainForm):
 			self.displayResultsGrid(self.page)
 			
 		except Exception, e:
-			npyscreen.notify_confirm("e: %s" % e)
+			npyscreen.notify_confirm("e: %s" % e, editw=1)
 					
 	def firstPage(self):
 		self.page = 0
@@ -646,7 +646,7 @@ class StructureForm(npyscreen.ActionFormMinimal, MainForm):
 			self.displayResultsGrid(self.page)
 			
 		except Exception, e:
-			npyscreen.notify_confirm("e: %s" % e)
+			npyscreen.notify_confirm("e: %s" % e, editw=1)
 	
 	def firstPage(self):
 		self.page = 0
@@ -712,7 +712,7 @@ class StructureForm(npyscreen.ActionFormMinimal, MainForm):
 			self.parentApp.getForm('EDITFIELD').table_name = self.value
 			self.parentApp.switchForm('EDITFIELD')
 		else:
-			npyscreen.notify_confirm("Please select a field to edit.")
+			npyscreen.notify_confirm("Please select a field to edit.", editw=1)
 			
 	# deleteRow is similar to editRow in that a row must be selected. It 
 	# requires that the user confirms their desire to delete the row. It 
@@ -720,16 +720,16 @@ class StructureForm(npyscreen.ActionFormMinimal, MainForm):
 	
 	def deleteField(self):
 		if self.SQL_display.value:
-			self.yesOrNo = npyscreen.notify_yes_no("You are about to delete a field. This action cannot be undone. Proceed?")
+			self.yesOrNo = npyscreen.notify_yes_no("You are about to delete a field. This action cannot be undone. Proceed?", editw=1)
 			if self.yesOrNo:
 				# This passes the table name and column name to the column delete function
 				column_values = self.results[self.SQL_display.value[0]]
 				self.parentApp.sql.delete_column(self.value, column_values) 
 				self.parentApp.switchForm('STRUCTURE')
 			else:
-				npyscreen.notify_confirm("Aborted. Your field was NOT deleted.")
+				npyscreen.notify_confirm("Aborted. Your field was NOT deleted.", editw=1)
 		else:
-			npyscreen.notify_confirm("Please select a field to delete.")
+			npyscreen.notify_confirm("Please select a field to delete.", editw=1)
 
 ################################################################
 # EDIT FIELD FORM
@@ -820,7 +820,7 @@ class EditFieldForm(npyscreen.ActionForm):
 		# old values to determine what has changed
 		self.new_values = {}
 		if self.wgColumnName.value == '':
-			npyscreen.notify_confirm("Column name is a required field.")
+			npyscreen.notify_confirm("Column name is a required field.", editw=1)
 			return
 		self.new_values['colname'] = self.wgColumnName.value
 		self.new_values['datatype'] = self.wgDataType.values[self.wgDataType.value[0]]
