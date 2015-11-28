@@ -24,7 +24,8 @@ class ConnectForm(npyscreen.ActionForm, npyscreen.SplitForm):
 	CANCEL_BUTTON_BR_OFFSET = (2, 15)
 	ALLOW_RESIZE = False
 	
-	def create(self):		
+	def create(self):
+		npyscreen.setTheme(ColorfulTheme)		
 		self.dbname = self.add(npyscreen.TitleText, begin_entry_at=24, name="Database Name:", value="myapp")
 		self.dbuser = self.add(npyscreen.TitleText, begin_entry_at=24, name="Database User:", value="myapp")
 		self.dbpass = self.add(npyscreen.TitleText, begin_entry_at=24, name="Database Password:", value="dbpass")
@@ -860,6 +861,29 @@ class App(npyscreen.NPSAppManaged):
 		self.addForm('EDITROW', EditRowForm, name="Edit Row")
 		self.addForm('EDITFIELD', EditFieldForm, name="Edit Field")
 		#self.addForm('EDITBROWSEFM', EditBrowse, name="EditBrowse")
+
+class ColorfulTheme(npyscreen.ThemeManager):
+    default_colors = {
+        'DEFAULT'     : 'WHITE_BLACK',
+        'FORMDEFAULT' : 'CYAN_BLACK',
+        'NO_EDIT'     : 'GREEN_BLACK',
+        'STANDOUT'    : 'CYAN_BLACK',
+        'LABEL'       : 'GREEN_BLACK',
+        'LABELBOLD'   : 'YELLOW_BLACK',
+        'CONTROL'     : 'GREEN_BLACK',
+	    'CURSOR'      : 'WHITE_BLACK',
+	    'CURSOR_INVERSE': 'BLACK_WHITE',	   
+	    'IMPORTANT'   : 'GREEN_BLACK',
+	    'SAFE'        : 'GREEN_BLACK',
+	    'WARNING'     : 'YELLOW_BLACK',
+	    'DANGER'      : 'RED_BLACK',
+	    'CRITICAL'    : 'BLACK_RED',
+	    'GOOD'        : 'GREEN_BLACK',
+	    'GOODHL'      : 'GREEN_BLACK',
+	    'VERYGOOD'    : 'BLACK_GREEN',
+	    'CAUTION'     : 'YELLOW_BLACK',
+	    'CAUTIONHL'   : 'BLACK_YELLOW',
+    }
 
 if __name__ == "__main__":
 	app = App().run()
