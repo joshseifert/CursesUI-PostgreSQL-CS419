@@ -817,12 +817,18 @@ class EditFieldForm(npyscreen.ActionForm):
 
 	def on_ok(self):
 
-		# get new values from the form - we need to be able to compare with
-		# old values to determine what has changed
-		self.new_values = {}
+		# required field validation
 		if self.wgColumnName.value == '':
 			npyscreen.notify_confirm("Column name is a required field.", editw=1)
 			return
+
+		if self.wgNullable.value == [1] and self.wgDefault.value == '':
+			npyscreen.notify_confirm("You must set a default value when adding NOT NULL columns.", editw=1)
+			return
+
+		# get new values from the form - we need to be able to compare with
+		# old values to determine what has changed
+		self.new_values = {}
 		self.new_values['colname'] = self.wgColumnName.value
 		self.new_values['datatype'] = self.wgDataType.values[self.wgDataType.value[0]]
 		self.new_values['collation'] = self.wgCollationName.value
