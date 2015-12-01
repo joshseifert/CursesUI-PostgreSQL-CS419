@@ -24,8 +24,8 @@ class PostgreSQL():
 			# http://www.postgresql.org/docs/9.1/static/information-schema.html
 			# http://dba.stackexchange.com/questions/32975/error-could-not-find-array-type-for-datatype-information-schema-sql-identifier
 			# retreive column and key column usage metadata
-			query_string = 'SELECT c.column_name, c.data_type, c.collation_name, \
-			c.is_nullable, c.column_default, array_agg(cc.constraint_type::text) AS constraints\
+			query_string = 'SELECT c.column_name, c.data_type, c.is_nullable, \
+			c.column_default, array_agg(cc.constraint_type::text) AS constraints\
 			FROM information_schema.columns c\
 			LEFT JOIN ( \
 				SELECT tc.constraint_type, kcu.column_name \
@@ -39,7 +39,7 @@ class PostgreSQL():
 			) AS cc \
 				ON c.column_name = cc.column_name \
 			WHERE c.table_name = \'%s\' \
-			GROUP BY c.column_name, c.data_type, c.collation_name, \
+			GROUP BY c.column_name, c.data_type, \
 			c.is_nullable, c.column_default;' % table_name
 
 			c.execute(query_string)
@@ -106,43 +106,111 @@ class PostgreSQL():
 		finally:
 			c.close()
 
-	#def edit_column(self, table_name, old_column_values, new_column_values):
-		# try:
-		# 	c = self.conn.cursor()
+	def edit_column(self, table_name, old_column_values, new_column_values):
+		try:
+			# set the transaction level to serialized to ensure statements are executed in this
+			# order and committed/rolled back as an atomic unit
+			self.conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_SERIALIZABLE)
+			c = self.conn.cursor()
 
-		# 	if column_values['collation']:
-		# 		npyscreen.notify_confirm('creation w/ collation sql') #debug
-		# 		c.execute('ALTER TABLE ' + table_name + ' ADD COLUMN %s %s COLLATE %s;', (AsIs(column_values['colname']), AsIs(column_values['datatype']), AsIs(column_values['collation'])))
-		# 	else:
-		# 		npyscreen.notify_confirm('creation sql') #debug
-		# 		c.execute('ALTER TABLE ' + table_name + ' ADD COLUMN %s %s;', (AsIs(column_values['colname']), AsIs(column_values['datatype'])))
+			# add/drop primary key constraint first to avoid conflicts with other changes
+			if old_column_values['pk'] != new_column_values['pk']:
+				if new_column_values['pk'] == [0]:
+					# determines if there is already a primary key on the table
+					query_getpk_string = 'SELECT kcu.column_name \
+						FROM information_schema.table_constraints tc \
+						JOIN information_schema.key_column_usage kcu \
+							ON tc.constraint_catalog = kcu.constraint_catalog \
+							AND tc.constraint_schema = kcu.constraint_schema \
+							AND tc.constraint_name = kcu.constraint_name \
+						WHERE tc.constraint_type = \'PRIMARY KEY\' \
+							AND tc.table_name = \'%s\';' % table_name
+					c.execute(query_getpk_string)
+					primarykey = c.fetchall()
 
-		# 	if column_values['nullable'] == [1]:
-		# 		npyscreen.notify_confirm('null sql') #debug
-		# 		c.execute('ALTER TABLE ' + table_name + ' ALTER COLUMN %s SET NOT NULL;', (AsIs(column_values['colname']),))
-				
-		# 	if column_values['default']:
-		# 		npyscreen.notify_confirm('default sql') #debug
-		# 		c.execute('ALTER TABLE ' + table_name + ' ALTER COLUMN %s SET DEFAULT %s;', (AsIs(column_values['colname']), column_values['default']))
-				
-		# 	if column_values['unique'] == [0]:
-		# 		npyscreen.notify_confirm('unique sql') #debug
-		# 		c.execute('ALTER TABLE ' + table_name + ' ADD UNIQUE (%s);', (AsIs(column_values['colname']),))
-				
-		# 	if primarykey and column_values['pk'] == [0]:
-		# 		npyscreen.notify_confirm('Add column aborted. You already have a primary \
-		# 		key set on the %s field.' % primarykey[0])
-		# 		return
-		# 	elif column_values['pk'] == [0]:
-		# 		npyscreen.notify_confirm('pk sql') #debug
-		# 		c.execute('ALTER TABLE ' + table_name + ' ADD PRIMARY KEY (%s);', (AsIs(column_values['colname']),))
+					if not primarykey:
+						c.execute('ALTER TABLE ' + table_name + ' ADD PRIMARY KEY (%s);', (AsIs(column_values['colname']),))
+					else:
+						# reset transaction level, rollback and close cursor
+						self.conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_READ_COMMITTED)
+						self.conn.rollback()
+						c.close()
 
-		# 	npyscreen.notify_confirm('Field added.')
-		# except Exception, e:
-		# 	npyscreen.notify_confirm('e: %s' % e)
-		# 	c.execute('ROLLBACK;')
-		# finally:
-		# 	c.close()
+						npyscreen.notify_confirm('Edit column aborted. You already have a primary \
+						key set on the %s field.' % primarykey[0])
+						return
+				else:
+					index_qry = 'SELECT tc.constraint_name \
+						FROM information_schema.table_constraints tc \
+						JOIN information_schema.key_column_usage kcu \
+							ON tc.constraint_catalog = kcu.constraint_catalog \
+							AND tc.constraint_schema = kcu.constraint_schema \
+							AND tc.constraint_name = kcu.constraint_name \
+						WHERE tc.constraint_type = \'PRIMARY KEY\' \
+							AND kcu.table_name = \'%s\' \
+							AND kcu.column_name = \'%s\';' % (table_name, old_column_values['colname'])
+
+				 	c.execute(index_qry)
+				 	constraint = c.fetchone()
+				 	c.execute('ALTER TABLE ' + table_name + ' DROP CONSTRAINT %s;', (AsIs(constraint[0]),))
+			
+			# change datatype
+			if old_column_values['datatype'] != new_column_values['datatype']:
+				c.execute('ALTER TABLE ' + table_name + ' ALTER COLUMN %s TYPE %s;', (AsIs(old_column_values['colname']), AsIs(new_column_values['datatype'])))
+
+			# change default
+			if old_column_values['default'] != new_column_values['default']:
+			 	if new_column_values['default'] == '':
+			 		c.execute('ALTER TABLE ' + table_name + ' ALTER COLUMN %s DROP DEFAULT;', (AsIs(old_column_values['colname']),))
+				else:
+			 		c.execute('ALTER TABLE ' + table_name + ' ALTER COLUMN %s SET DEFAULT %s;', (AsIs(old_column_values['colname']), new_column_values['default']))
+
+			# change null/not null
+			if old_column_values['nullable'] != new_column_values['nullable']:
+				if new_column_values['nullable'] == [0]:
+					c.execute('ALTER TABLE ' + table_name + ' ALTER COLUMN %s DROP NOT NULL;', (AsIs(old_column_values['colname']),))
+				else:
+					# postgresql will not allow user to update column to NOT NULL if the column already
+					# contains null values - this sets all values in the column to a required default value
+					c.execute('UPDATE ' + table_name + ' SET %s = %s WHERE %s IS NULL;', (AsIs(old_column_values['colname']), new_column_values['default'], AsIs(old_column_values['colname'])))
+					c.execute('ALTER TABLE ' + table_name + ' ALTER COLUMN %s SET NOT NULL;', (AsIs(old_column_values['colname']),))
+
+			# add/drop unique constraint
+			if old_column_values['unique'] != new_column_values['unique']:
+				if new_column_values['unique'] == [0]:
+				 	c.execute('ALTER TABLE ' + table_name + ' ADD UNIQUE (%s);', (AsIs(old_column_values['colname']),))
+				else:
+					index_qry = 'SELECT tc.constraint_name \
+						FROM information_schema.table_constraints tc \
+						JOIN information_schema.key_column_usage kcu \
+							ON tc.constraint_catalog = kcu.constraint_catalog \
+							AND tc.constraint_schema = kcu.constraint_schema \
+							AND tc.constraint_name = kcu.constraint_name \
+						WHERE tc.constraint_type = \'UNIQUE\' \
+							AND kcu.table_name = \'%s\' \
+							AND kcu.column_name = \'%s\';' % (table_name, old_column_values['colname'])
+
+				 	c.execute(index_qry)
+				 	constraint = c.fetchone()
+				 	c.execute('ALTER TABLE ' + table_name + ' DROP CONSTRAINT %s;', (AsIs(constraint[0]),))
+
+			# change new column name last so that all other changes can use the old
+			# column name (safer because it isn't user input)
+			if old_column_values['colname'] != new_column_values['colname']:
+				c.execute('ALTER TABLE ' + table_name + ' RENAME COLUMN %s TO %s;', (AsIs(old_column_values['colname']), AsIs(new_column_values['colname'])))
+
+			# explicitly commit the serialized transaction
+			self.conn.commit()
+			npyscreen.notify_confirm('Field has been changed.')
+		except Exception, e:
+			self.conn.rollback()
+			npyscreen.notify_confirm('Edit row failed, all changes have \
+			been rolled back. Error: %s' % e)
+		finally:
+			# reset transaction level and close cursor
+			self.conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_READ_COMMITTED)
+			c.close()
+			
 
 	def add_column(self, table_name, column_values):
 
@@ -163,7 +231,7 @@ class PostgreSQL():
 			primarykey = c.fetchall()
 		except Exception, e:
 			npyscreen.notify_confirm('e: %s' % e)
-			c.execute('ROLLBACK;')
+			self.conn.rollback()
 			return
 		finally:
 			c.close()
@@ -175,28 +243,26 @@ class PostgreSQL():
 		# for a list but is required to escape the psycopg2 quotes. To deal with these problems, each
 		# variable option was broken out into its own SQL alter statement.
 		try:
+			# set the transaction level to serialized to ensure statements are executed in this
+			# order and committed/rolled back as an atomic unit
+			self.conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_SERIALIZABLE)
 			c = self.conn.cursor()
 
 			if column_values['collation']:
-				npyscreen.notify_confirm('creation w/ collation sql') #debug
 				c.execute('ALTER TABLE ' + table_name + ' ADD COLUMN %s %s COLLATE %s;', (AsIs(column_values['colname']), AsIs(column_values['datatype']), AsIs(column_values['collation'])))
 			else:
-				npyscreen.notify_confirm('creation sql') #debug
 				c.execute('ALTER TABLE ' + table_name + ' ADD COLUMN %s %s;', (AsIs(column_values['colname']), AsIs(column_values['datatype'])))
 				
 			if column_values['default']:
-				npyscreen.notify_confirm('default sql') #debug
 				c.execute('ALTER TABLE ' + table_name + ' ALTER COLUMN %s SET DEFAULT %s;', (AsIs(column_values['colname']), column_values['default']))
 				
 			if column_values['nullable'] == [1]:
-				npyscreen.notify_confirm('null sql') #debug
 				# postgresql will not allow user to update column to NOT NULL if the column already
 				# contains null values - this sets all values in the column to a required default value
-				c.execute('UPDATE ' + table_name + ' SET %s = %s WHERE %s IS NULL;', (AsIs(column_values['colname']), AsIs(column_values['default']), AsIs(column_values['colname'])))
+				c.execute('UPDATE ' + table_name + ' SET %s = %s WHERE %s IS NULL;', (AsIs(column_values['colname']), column_values['default'], AsIs(column_values['colname'])))
 				c.execute('ALTER TABLE ' + table_name + ' ALTER COLUMN %s SET NOT NULL;', (AsIs(column_values['colname']),))
 
 			if column_values['unique'] == [0]:
-				npyscreen.notify_confirm('unique sql') #debug
 				c.execute('ALTER TABLE ' + table_name + ' ADD UNIQUE (%s);', (AsIs(column_values['colname']),))
 				
 			if primarykey and column_values['pk'] == [0]:
@@ -204,14 +270,17 @@ class PostgreSQL():
 				key set on the %s field.' % primarykey[0])
 				return
 			elif column_values['pk'] == [0]:
-				npyscreen.notify_confirm('pk sql') #debug
 				c.execute('ALTER TABLE ' + table_name + ' ADD PRIMARY KEY (%s);', (AsIs(column_values['colname']),))
 
+			# explicitly commit the serialized transaction
+			self.conn.commit()
 			npyscreen.notify_confirm('Field added.')
 		except Exception, e:
-			npyscreen.notify_confirm('e: %s' % e)
-			c.execute('ROLLBACK;')
+			self.conn.rollback()
+			npyscreen.notify_confirm('Your field could not be added. Error: %s' % e)
 		finally:
+			# reset transaction level and close cursor
+			self.conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_READ_COMMITTED)
 			c.close()
 			
 

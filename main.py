@@ -782,7 +782,6 @@ class EditFieldForm(npyscreen.ActionForm):
 			"uuid",
 			"xml"], scroll_exit=True)
 
-		self.wgCollationName = self.add(npyscreen.TitleText, name="Collation Name :")
 		self.wgNullable = self.add(npyscreen.TitleSelectOne, max_height=4, value = [1,], name="Nullable: ",
           values = ["Yes","No"], scroll_exit=True)
 		self.wgDefault = self.add(npyscreen.TitleText, name="Default: ")
@@ -795,22 +794,26 @@ class EditFieldForm(npyscreen.ActionForm):
 
 		# show field values if this is an edit form
 		if self.col_values:
-			self.wgColumnName.value = self.col_values[0]
-			self.wgDataType.value = [self.wgDataType.values.index(self.col_values[1]),]
-			self.wgCollationName.value = self.col_values[2]
-			self.wgDefault.value = self.col_values[4]
-		
-			if self.col_values[3] == "YES":
-				self.wgNullable.value = [0,]
-			else:
-				self.wgNullable.value = [1,]
+			self.old_values = {}
+			self.old_values['colname'] = self.col_values[0]
+			self.old_values['datatype'] = self.col_values[1]
+			self.old_values['nullable'] = [0,] if self.col_values[2] == 'YES' else [1,]
+			self.old_values['default'] = '' if self.col_values[3] == None else self.col_values[3]
+			self.old_values['unique'] = [0,] if 'UNIQUE' in self.col_values[4] else [1,]
+			self.old_values['pk'] = [0,] if 'PRIMARY KEY' in self.col_values[4] else [1,]
+
+			self.wgColumnName.value = self.old_values['colname']
+			self.wgDataType.value = [self.wgDataType.values.index(self.old_values['datatype']),]
+			self.wgNullable.value = self.old_values['nullable']
+			self.wgDefault.value = self.old_values['default']
+			self.wgUnique.value = self.old_values['unique']
+			self.wgPrimaryKey.value = self.old_values['pk']
 				
 		# otherwise, reset this form
 		else:
 			self.wgColumnName.value = ""
 			self.wgDataType.value = [0,]
-			self.wgCollationName.value = ""
-			self.wgNullable.value = [1,]
+			self.wgNullable.value = [0,]
 			self.wgDefault.value = ""
 			self.wgUnique.value = [1,]
 			self.wgPrimaryKey.value = [1,]
@@ -831,7 +834,6 @@ class EditFieldForm(npyscreen.ActionForm):
 		self.new_values = {}
 		self.new_values['colname'] = self.wgColumnName.value
 		self.new_values['datatype'] = self.wgDataType.values[self.wgDataType.value[0]]
-		self.new_values['collation'] = self.wgCollationName.value
 		self.new_values['nullable'] = self.wgNullable.value
 		self.new_values['default'] = self.wgDefault.value
 		self.new_values['unique'] = self.wgUnique.value
@@ -839,6 +841,8 @@ class EditFieldForm(npyscreen.ActionForm):
 
 		if self.action == 'add':
 			self.parentApp.sql.add_column(self.table_name, self.new_values)
+		if self.action == 'edit':
+			self.parentApp.sql.edit_column(self.table_name, self.old_values, self.new_values)
 
 		self.parentApp.switchForm('STRUCTURE')
 
