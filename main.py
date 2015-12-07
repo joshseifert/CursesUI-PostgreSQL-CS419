@@ -415,6 +415,9 @@ class BrowseForm(npyscreen.ActionFormMinimal, MainForm):
 			
 	def editRow(self):
 		if self.SQL_display.value:
+			# fix bug where always select index of first page result
+			self.SQL_display.value[0] += (self.page * self.parentApp.rows_per_page)
+			npyscreen.notify_confirm(str(self.SQL_display.value))
 			self.parentApp.getForm('EDITROW').col_names = self.colnames
 			self.parentApp.getForm('EDITROW').col_values = self.results[self.SQL_display.value[0]]
 			self.parentApp.getForm('EDITROW').action = "edit"
@@ -431,6 +434,8 @@ class BrowseForm(npyscreen.ActionFormMinimal, MainForm):
 		if self.SQL_display.value:
 			self.yesOrNo = npyscreen.notify_yes_no("You are about to delete a row. This action cannot be undone. Proceed?", editw=1)
 			if self.yesOrNo:
+				# fix bug where always select index of first page result
+				self.SQL_display.value[0] += (self.page * self.parentApp.rows_per_page)
 				# This passes the table name, column names, column values to the function that deletes the row.
 				self.parentApp.sql.delete_row(self.value, self.colnames, self.results[self.SQL_display.value[0]]) 
 				self.parentApp.switchForm('BROWSE')
@@ -451,6 +456,8 @@ class BrowseForm(npyscreen.ActionFormMinimal, MainForm):
 			self.parentApp.switchForm('CHOOSE')
 		
 		self.name = "Browsing table %s" % self.value
+		self.SQL_display.value = None
+		
 		try:
 			# sql stmt execution
 			self.colnames, self.results = self.parentApp.sql.browse_table(self.value)
@@ -722,6 +729,8 @@ class StructureForm(npyscreen.ActionFormMinimal, MainForm):
 			
 	def editField(self):
 		if self.SQL_display.value:
+			# fix bug where always select index of first page result
+			self.SQL_display.value[0] += (self.page * self.parentApp.rows_per_page)
 			self.parentApp.getForm('EDITFIELD').col_names = self.colnames
 			self.parentApp.getForm('EDITFIELD').col_values = self.results[self.SQL_display.value[0]]
 			self.parentApp.getForm('EDITFIELD').action = "edit"
@@ -738,6 +747,8 @@ class StructureForm(npyscreen.ActionFormMinimal, MainForm):
 		if self.SQL_display.value:
 			self.yesOrNo = npyscreen.notify_yes_no("You are about to delete a field. This action cannot be undone. Proceed?", editw=1)
 			if self.yesOrNo:
+				# fix bug where always select index of first page result
+				self.SQL_display.value[0] += (self.page * self.parentApp.rows_per_page)
 				# This passes the table name and column name to the column delete function
 				column_values = self.results[self.SQL_display.value[0]]
 				self.parentApp.sql.delete_column(self.value, column_values) 
