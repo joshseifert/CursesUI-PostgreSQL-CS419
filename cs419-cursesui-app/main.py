@@ -152,7 +152,7 @@ class MainForm(npyscreen.FormWithMenus):
 # the query has been run.
 ################################################################
 
-class SQLForm(npyscreen.SplitForm, MainForm):
+class SQLForm(npyscreen.SplitForm, npyscreen.ActionFormMinimal, MainForm):
 	OK_BUTTON_TEXT = "Run Query"
 	OK_BUTTON_BR_OFFSET = (18, 6)
 
@@ -175,6 +175,9 @@ class SQLForm(npyscreen.SplitForm, MainForm):
 		self.SQL_command = self.add(npyscreen.MultiLineEdit, max_height=5, scroll_exit=True)
 		self.results_per_page_title_text = self.add(npyscreen.TitleText, begin_entry_at=31, max_width=40, rely=7, name="# Results Per Page (Max 10):", value="10")
 		self.SQL_display = self.add(npyscreen.GridColTitles, max_height=12, editable=False, rely=9)
+		
+		self.clear_btn = self.add(npyscreen.ButtonPress, max_width = 10, name='Clear', relx=-33, rely=7)
+		self.clear_btn.whenPressed = self.clearScreen
 	
 		self.first_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[First]', relx=-43, rely=-3, editable=False)
 		self.first_page_btn.whenPressed = self.firstPage
@@ -188,7 +191,15 @@ class SQLForm(npyscreen.SplitForm, MainForm):
 		self.last_page_btn = self.add(npyscreen.ButtonPress, max_width=10, name='[Last]', relx=-13, rely=-3, editable=False)
 		self.last_page_btn.whenPressed = self.lastPage
 		
-	def afterEditing(self):
+	# Clear SQL query and results
+	def clearScreen(self):
+		self.SQL_command.value = ""
+		self.SQL_display.col_titles = []
+		self.SQL_display.values = []
+		
+	# When user selects the "run query" button. Changed from afterEditing, prevents error messages
+	# when query inadvertently runs upon changing forms.
+	def on_ok(self):
 	
 		# get # of rows per page. User is instructed to enter a number between 1-10.
 		# If the user does not enter a number, they receive an error message. If they
@@ -224,8 +235,6 @@ class SQLForm(npyscreen.SplitForm, MainForm):
 				self.next_page_btn.editable = True
 				self.last_page_btn.editable = True
 			
-		#except StopIteration:
-		#	pass
 		except Exception, e:			
 			npyscreen.notify_confirm("e: %s" % e, editw=1) 
 	
@@ -318,11 +327,17 @@ class ChooseTableForm(npyscreen.ActionFormMinimal, MainForm):
 		self.menu.addItem("Quit Application", self.exit_form, "^X")
 				
 		self.table_list = self.add(TableList, rely = 4, scroll_exit = True)
+		self.parentApp.results_per_page = self.add(npyscreen.TitleText, begin_entry_at=31, rely = 2, name="# Results Per Page (Max 15):", value="15")
 	
 	# Based on sample code from the official documentation at: http://npyscreen.readthedocs.org/example-addressbk.html
 	def beforeEditing(self):
+		# Show widget to allow results per page only if user is browsing table, not viewing structure
 		if self.parentApp.action == 'b':
-			self.parentApp.results_per_page = self.add(npyscreen.TitleText, begin_entry_at=31, rely = 2, name="# Results Per Page (Max 15):", value="15")	
+			self.parentApp.results_per_page.hidden = False
+			self.parentApp.results_per_page.editable = True
+		else:
+			self.parentApp.results_per_page.hidden = True
+			self.parentApp.results_per_page.editable = False
 		self.table_list.values = self.parentApp.sql.get_table_list()
 		self.table_list.display()
 
@@ -400,6 +415,9 @@ class BrowseForm(npyscreen.ActionFormMinimal, MainForm):
 			
 	def editRow(self):
 		if self.SQL_display.value:
+			# fix bug where always select index of first page result
+			self.SQL_display.value[0] += (self.page * self.parentApp.rows_per_page)
+			npyscreen.notify_confirm(str(self.SQL_display.value))
 			self.parentApp.getForm('EDITROW').col_names = self.colnames
 			self.parentApp.getForm('EDITROW').col_values = self.results[self.SQL_display.value[0]]
 			self.parentApp.getForm('EDITROW').action = "edit"
@@ -416,6 +434,8 @@ class BrowseForm(npyscreen.ActionFormMinimal, MainForm):
 		if self.SQL_display.value:
 			self.yesOrNo = npyscreen.notify_yes_no("You are about to delete a row. This action cannot be undone. Proceed?", editw=1)
 			if self.yesOrNo:
+				# fix bug where always select index of first page result
+				self.SQL_display.value[0] += (self.page * self.parentApp.rows_per_page)
 				# This passes the table name, column names, column values to the function that deletes the row.
 				self.parentApp.sql.delete_row(self.value, self.colnames, self.results[self.SQL_display.value[0]]) 
 				self.parentApp.switchForm('BROWSE')
@@ -436,6 +456,8 @@ class BrowseForm(npyscreen.ActionFormMinimal, MainForm):
 			self.parentApp.switchForm('CHOOSE')
 		
 		self.name = "Browsing table %s" % self.value
+		self.SQL_display.value = None
+		
 		try:
 			# sql stmt execution
 			self.colnames, self.results = self.parentApp.sql.browse_table(self.value)
@@ -707,6 +729,8 @@ class StructureForm(npyscreen.ActionFormMinimal, MainForm):
 			
 	def editField(self):
 		if self.SQL_display.value:
+			# fix bug where always select index of first page result
+			self.SQL_display.value[0] += (self.page * self.parentApp.rows_per_page)
 			self.parentApp.getForm('EDITFIELD').col_names = self.colnames
 			self.parentApp.getForm('EDITFIELD').col_values = self.results[self.SQL_display.value[0]]
 			self.parentApp.getForm('EDITFIELD').action = "edit"
@@ -723,6 +747,8 @@ class StructureForm(npyscreen.ActionFormMinimal, MainForm):
 		if self.SQL_display.value:
 			self.yesOrNo = npyscreen.notify_yes_no("You are about to delete a field. This action cannot be undone. Proceed?", editw=1)
 			if self.yesOrNo:
+				# fix bug where always select index of first page result
+				self.SQL_display.value[0] += (self.page * self.parentApp.rows_per_page)
 				# This passes the table name and column name to the column delete function
 				column_values = self.results[self.SQL_display.value[0]]
 				self.parentApp.sql.delete_column(self.value, column_values) 
@@ -755,6 +781,7 @@ class EditFieldForm(npyscreen.ActionForm):
 			"boolean",
 			"box",
 			"bytea",
+			"character",
 			"character varying",
 			"cidr",
 			"circle",
@@ -867,10 +894,8 @@ class App(npyscreen.NPSAppManaged):
 		self.addForm('CHOOSE', ChooseTableForm, name="Choose a table")
 		self.addForm('BROWSE', BrowseForm, name="Browse")
 		self.addForm('STRUCTURE', StructureForm, name="Structure")
-		#self.addForm('EDITSTRUCTUREFM', EditStructure, name="EditStructure")
 		self.addForm('EDITROW', EditRowForm, name="Edit Row")
 		self.addForm('EDITFIELD', EditFieldForm, name="Edit Field")
-		#self.addForm('EDITBROWSEFM', EditBrowse, name="EditBrowse")
 
 class ColorfulTheme(npyscreen.ThemeManager):
     default_colors = {
