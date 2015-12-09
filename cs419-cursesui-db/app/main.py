@@ -29,8 +29,8 @@ class ConnectForm(npyscreen.ActionForm, npyscreen.SplitForm):
 		self.dbname = self.add(npyscreen.TitleText, begin_entry_at=24, name="Database Name:", value="myapp")
 		self.dbuser = self.add(npyscreen.TitleText, begin_entry_at=24, name="Database User:", value="myapp")
 		self.dbpass = self.add(npyscreen.TitleText, begin_entry_at=24, name="Database Password:", value="dbpass")
-		self.dbhost = self.add(npyscreen.TitleText, begin_entry_at=24, name="Database Host:", value="127.0.0.1")
-		self.dbport = self.add(npyscreen.TitleText, begin_entry_at=24, name="Database Port:", value="15432")
+		self.dbhost = self.add(npyscreen.TitleText, begin_entry_at=24, name="Database Host:", value="0.0.0.0")
+		self.dbport = self.add(npyscreen.TitleText, begin_entry_at=24, name="Database Port:", value="5432")
 
 	#Connect to the database using psycopg2 library. Reference: http://initd.org/psycopg/docs/module.html#psycopg2.connect
 	
