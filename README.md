@@ -1,5 +1,5 @@
 # cs419-cursesui-db 
-This project is an interface for a PostgreSQL database, written for CS 419 at OSU.
+This project is an interface for a PostgreSQL database, written for CS 419 at OSU, in collaboration with Emma Murray.
 
 Written in Python, this program uses the NCurses and Npyscreen libraries to create a terminal-independent GUI-like interface that can communicate with a database, similar to PHPMyAdmin. The intended users are people who are comfortable using the aforementioned database software. 
 
